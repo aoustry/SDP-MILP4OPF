@@ -13,6 +13,7 @@ import time
 
 class mipsResultParser():
     
+    """Class to parse the results of the local solver MIPS. """
     
     def __init__(self,folder,name,baseMVA):
         
