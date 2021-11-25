@@ -1,21 +1,26 @@
 # SDP-MILP4OPF
 A global optimization algorithm for the ACOPF problem
 
-# Programming language and dependencies
+# Test instances
 
-dualACOPFsolver is implemented in Python3. The required packages are:
+The ACOPF instances are taken from the library PGLib (https://github.com/power-grid-lib/pglib-opf), which is maintained by the IEEE PES Task Force on Benchmarks for Validation of Emerging Power System Algorithms.
+
+
+# Programming language, installation and dependencies
+
+dualACOPFsolver is implemented in Python3. To run this code, you have to clone this repository. The required packages are:
 - numpy
 - scipy
 - pandas
-- docplex
-- mosek
+- docplex (with CPLEX license)
+- mosek (with MOSEK license)
 - chompack
 - cvxopt 
 - progress
 
-# Test instances
 
-The ACOPF instances are taken from the library PGLib (https://github.com/power-grid-lib/pglib-opf), which is maintained by the IEEE PES Task Force on Benchmarks for Validation of Emerging Power System Algorithms.
+You also have to replace the empty pglib-opf folder by a clone of https://github.com/power-grid-lib/pglib-opf, so as to have the test instances.
+
 
 # Numerical experiments
 
