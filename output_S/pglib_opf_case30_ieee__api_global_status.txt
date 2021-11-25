@@ -1,0 +1,4 @@
+Time BT-SDP = 5.403072357177734
+BT-SDP value = 18043.922808725598 
+Time MILP = 0.587838888168335 
+Local solver's Gap closed
