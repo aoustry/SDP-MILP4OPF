@@ -22,7 +22,7 @@ dualACOPFsolver is implemented in Python3. To run this code, you have to clone t
 You also have to replace the empty pglib-opf folder by a clone of https://github.com/power-grid-lib/pglib-opf, so as to have the test instances.
 
 
-# Numerical experiments
+# Running our numerical experiments
 
 Executing 
 ```
