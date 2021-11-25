@@ -11,7 +11,7 @@ dualACOPFsolver is implemented in Python3. The required packages are:
 - mosek
 - chompack
 - cvxopt 
-- progressbar
+- progress
 
 # Test instances
 
