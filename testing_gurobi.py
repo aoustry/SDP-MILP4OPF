@@ -5,16 +5,17 @@ Created on Wed Jan 12 20:11:57 2022
 @author: aoust
 """
 
+import os
 
 
 import instance
 import numpy as np
-from gbBenchmark import GurobiACOPFmodel
+from testing.gbBenchmark import GurobiACOPFmodel
 import time
 
 import EnhancedSdpRelaxer
 import BTSDPRelaxer
-from mipsParser import mipsResultParser
+import mipsParser 
 
 from progress.bar import Bar
 
@@ -47,7 +48,7 @@ def load_instance_and_bound_tightening(name_instance):
         folder = 'mips_outputs_lc'
     else:
         folder = 'mips_outputs_S'
-    localOptParser = mipsResultParser(folder,name_instance,I.baseMVA)
+    localOptParser = mipsParser.mipsResultParser(folder,name_instance,I.baseMVA)
     ########################## Checking #########################################
     
     if I.n<=100:
@@ -141,7 +142,7 @@ def global_algo(name_instance):
         folder = 'mips_outputs_lc'
     else:
         folder = 'mips_outputs_S'
-    localOptParser = mipsResultParser(folder,name_instance,I.baseMVA)
+    localOptParser = mipsParser.mipsResultParser(folder,name_instance,I.baseMVA)
     
     I = load_instance_and_bound_tightening(name_instance)
     ########################## Checking #########################################
