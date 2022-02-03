@@ -229,27 +229,27 @@ def global_algo(name_instance):
         
         
 instances = [
-      # 'WB2',
-      # 'WB3',
-      # 'WB5',
- #  'WB5mod',
- #  'case9mod',
- # 'case22loop',
-# 'case30loopmod',
+       'WB2',
+       'WB3',
+       'WB5',
+   'WB5mod',
+   'case9mod',
+  'case22loop',
+ 'case30loopmod',
 'case39mod1',
  'case39mod2',
-# 'case118mod',
-# 'case5',
-#  'case6ww',
-# 'case9',
-# 'case14',
-# 'case30',
-# 'case39',
-# 'case57',
-# 'case89pegase',
-# 'case118',
-#   'case300',
-# 'case300mod'
+ 'case118mod',
+ 'case5',
+  'case6ww',
+ 'case9',
+ 'case14',
+ 'case30',
+ 'case39',
+ 'case57',
+ 'case89pegase',
+ 'case118',
+   'case300',
+ 'case300mod'
  ]
 
 
