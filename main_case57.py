@@ -38,7 +38,7 @@ with_lazy_random_sdp_cuts = False
 def load_instance(name_instance):
     np.random.seed(10)
     instance_config = {"lineconstraints" : lineconstraints,  "cliques_strategy":"ASP"}
-    Instance = instance.ACOPFinstance("case57/{0}.m".format(name_instance),name_instance,instance_config)
+    Instance = instance.ACOPFinstance("data/case57/{0}.m".format(name_instance),name_instance,instance_config)
     return Instance
 
 def compute_sdp_cuts(I):
@@ -49,9 +49,9 @@ def compute_sdp_cuts(I):
 def load_instance_and_bound_tightening(name_instance):
     I = load_instance(name_instance)
     if lineconstraints=='I':
-        folder = 'mips_outputs_lc'
+        folder = 'data/mips_outputs_lc'
     else:
-        folder = 'mips_outputs_S'
+        folder = 'data/mips_outputs_S'
     localOptParser = mipsResultParser(folder,name_instance,I.baseMVA)
     ########################## Checking #########################################
     
@@ -143,9 +143,9 @@ def global_algo(name_instance):
     t0 = time.time()
     I = load_instance(name_instance)
     if lineconstraints=='I':
-        folder = 'mips_outputs_lc'
+        folder = 'data/mips_outputs_lc'
     else:
-        folder = 'mips_outputs_S'
+        folder = 'data/mips_outputs_S'
     localOptParser = mipsResultParser(folder,name_instance,I.baseMVA)
     valSDP,X1,X2 = compute_sdp_cuts(I)
     if abs(localOptParser.value - valSDP)/localOptParser.value < reltol:

@@ -19,6 +19,8 @@ kdiscret= 3
 kdiscret2 = 3
 max_number_of_new_BP = 4
 k_for_slimit = 4
+rank_one_ratio = 5 * 1e-6
+
 class piecewiseRelaxer():
     
     def __init__(self, ACOPF, config, local_optimizer_results):
@@ -262,7 +264,11 @@ class piecewiseRelaxer():
         self.mdl.add_constraints([self.Vmax[b] >=self.L[b] for b in range(self.n)])
         
         for b in range(self.n): 
-            self.mdl.add_constraint(self.L[b] >= self.Vmin[b] + (self.ReW[b,b] - (self.Vmin[b]**2))*((self.Vmax[b] - self.Vmin[b])/(self.Vmax[b]**2 - self.Vmin[b]**2)))
+            if self.Vmax[b] - self.Vmin[b] >0:
+                self.mdl.add_constraint(self.L[b] >= self.Vmin[b] + (self.ReW[b,b] - (self.Vmin[b]**2))*((self.Vmax[b] - self.Vmin[b])/(self.Vmax[b]**2 - self.Vmin[b]**2)))
+            else:
+                self.mdl.add_constraint(self.L[b] == self.Vmin[b])
+                self.mdl.add_constraint(self.ReW[b,b] == self.Vmin[b]**2)
         #Voltage  products magnitude discretization
         self.mdl.add_constraints([self.ReW[b,b]==self.R[b,b] for b in range(self.n)])
         self.mdl.add_constraints([self.R[b,a]==self.R[a,b] for (b,a) in self.edges])
@@ -452,7 +458,7 @@ class piecewiseRelaxer():
             s, U = LA.eigh(M)
             lambda_max = s.max()
             others = [abs(el) for el in list(s) if el!=lambda_max]
-            rankone = rankone and (lambda_max>0) and (max(others)/abs(lambda_max)<1E-6)
+            rankone = rankone and (lambda_max>0) and (max(others)/abs(lambda_max)<rank_one_ratio)
             maxratio = max(maxratio,max(others)/abs(lambda_max))
             sdpmeasure = min(sdpmeasure, s.min())
             for k in range(nc):

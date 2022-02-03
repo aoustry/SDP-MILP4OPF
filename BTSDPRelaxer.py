@@ -5,7 +5,7 @@ Created on Tue Nov  9 12:11:25 2021
 @author: aoust
 """
 
-
+import sys
 import itertools
 from scipy.sparse import lil_matrix, coo_matrix
 import numpy as np
@@ -260,8 +260,16 @@ class BTSDPRelaxer():
                     M.constraint(Expr.sub(A[idx_clique].index(i,i),R[idx_clique].index(1+i,1+i)),Domain.equalsTo(0))
                     M.constraint(R[idx_clique].index(0,1+i),Domain.greaterThan(self.Vmin[b]))
                     M.constraint(R[idx_clique].index(0,1+i),Domain.lessThan(self.Vmax[b]))
-                    slope = ((self.Vmax[b] - self.Vmin[b])/(self.Vmax[b]**2 - self.Vmin[b]**2))
-                    M.constraint(Expr.sub(R[idx_clique].index(0,1+i),Expr.mul(slope,A[idx_clique].index(i,i))), Domain.greaterThan(self.Vmin[b] - (self.Vmin[b]**2)*slope))
+                                        
+                    if self.Vmax[b] > self.Vmin[b]:
+                        slope = ((self.Vmax[b] - self.Vmin[b])/(self.Vmax[b]**2 - self.Vmin[b]**2))
+                        M.constraint(Expr.sub(R[idx_clique].index(0,1+i),Expr.mul(slope,A[idx_clique].index(i,i))), Domain.greaterThan(self.Vmin[b] - (self.Vmin[b]**2)*slope))
+                    else:
+                        assert(self.Vmax[b] == self.Vmin[b])
+                        M.constraint(A[idx_clique].index(i,i),Domain.equalsTo(self.Vmin[b]**2))
+                        M.constraint(R[idx_clique].index(0,i+1),Domain.equalsTo(self.Vmin[b]))
+                    
+                    
                     for j in range(nc):
                         
                         if i<j and not((clique[i],clique[j]) in already_covered):
@@ -471,7 +479,13 @@ class BTSDPRelaxer():
                     M.constraint(R[idx_clique].index(0,1+i),Domain.greaterThan(self.Vmin[b]))
                     M.constraint(R[idx_clique].index(0,1+i),Domain.lessThan(self.Vmax[b]))
                     slope = ((self.Vmax[b] - self.Vmin[b])/(self.Vmax[b]**2 - self.Vmin[b]**2))
-                    M.constraint(Expr.sub(R[idx_clique].index(0,1+i),Expr.mul(slope,A[idx_clique].index(i,i))), Domain.greaterThan(self.Vmin[b] - (self.Vmin[b]**2)*slope))
+                    if self.Vmax[b] > self.Vmin[b]:
+                        slope = ((self.Vmax[b] - self.Vmin[b])/(self.Vmax[b]**2 - self.Vmin[b]**2))
+                        M.constraint(Expr.sub(R[idx_clique].index(0,1+i),Expr.mul(slope,A[idx_clique].index(i,i))), Domain.greaterThan(self.Vmin[b] - (self.Vmin[b]**2)*slope))
+                    else:
+                        assert(self.Vmax[b] == self.Vmin[b])
+                        M.constraint(A[idx_clique].index(i,i),Domain.equalsTo(self.Vmin[b]**2))
+                        M.constraint(R[idx_clique].index(0,i+1),Domain.equalsTo(self.Vmin[b]))
                     for j in range(nc):
                         
                         if i<j and not((clique[i],clique[j]) in already_covered):
@@ -682,8 +696,13 @@ class BTSDPRelaxer():
                     M.constraint(Expr.sub(A[idx_clique].index(i,i),R[idx_clique].index(1+i,1+i)),Domain.equalsTo(0))
                     M.constraint(R[idx_clique].index(0,1+i),Domain.greaterThan(self.Vmin[b]))
                     M.constraint(R[idx_clique].index(0,1+i),Domain.lessThan(self.Vmax[b]))
-                    slope = ((self.Vmax[b] - self.Vmin[b])/(self.Vmax[b]**2 - self.Vmin[b]**2))
-                    M.constraint(Expr.sub(R[idx_clique].index(0,1+i),Expr.mul(slope,A[idx_clique].index(i,i))), Domain.greaterThan(self.Vmin[b] - (self.Vmin[b]**2)*slope))
+                    if self.Vmax[b] > self.Vmin[b]:
+                        slope = ((self.Vmax[b] - self.Vmin[b])/(self.Vmax[b]**2 - self.Vmin[b]**2))
+                        M.constraint(Expr.sub(R[idx_clique].index(0,1+i),Expr.mul(slope,A[idx_clique].index(i,i))), Domain.greaterThan(self.Vmin[b] - (self.Vmin[b]**2)*slope))
+                    else:
+                        assert(self.Vmax[b] == self.Vmin[b])
+                        M.constraint(A[idx_clique].index(i,i),Domain.equalsTo(self.Vmin[b]**2))
+                        M.constraint(R[idx_clique].index(0,i+1),Domain.equalsTo(self.Vmin[b]))
                     for j in range(nc):
                         
                         if i<j and not((clique[i],clique[j]) in already_covered):
@@ -891,8 +910,13 @@ class BTSDPRelaxer():
                     M.constraint(Expr.sub(A[idx_clique].index(i,i),R[idx_clique].index(1+i,1+i)),Domain.equalsTo(0))
                     M.constraint(R[idx_clique].index(0,1+i),Domain.greaterThan(self.Vmin[b]))
                     M.constraint(R[idx_clique].index(0,1+i),Domain.lessThan(self.Vmax[b]))
-                    slope = ((self.Vmax[b] - self.Vmin[b])/(self.Vmax[b]**2 - self.Vmin[b]**2))
-                    M.constraint(Expr.sub(R[idx_clique].index(0,1+i),Expr.mul(slope,A[idx_clique].index(i,i))), Domain.greaterThan(self.Vmin[b] - (self.Vmin[b]**2)*slope))
+                    if self.Vmax[b] > self.Vmin[b]:
+                        slope = ((self.Vmax[b] - self.Vmin[b])/(self.Vmax[b]**2 - self.Vmin[b]**2))
+                        M.constraint(Expr.sub(R[idx_clique].index(0,1+i),Expr.mul(slope,A[idx_clique].index(i,i))), Domain.greaterThan(self.Vmin[b] - (self.Vmin[b]**2)*slope))
+                    else:
+                        assert(self.Vmax[b] == self.Vmin[b])
+                        M.constraint(A[idx_clique].index(i,i),Domain.equalsTo(self.Vmin[b]**2))
+                        M.constraint(R[idx_clique].index(0,i+1),Domain.equalsTo(self.Vmin[b]))
                     for j in range(nc):
                         
                         if i<j and not((clique[i],clique[j]) in already_covered):

@@ -290,8 +290,10 @@ class ACOPFinstance():
             bus_b,bus_a,h = line
             index_bus_b,index_bus_a = self.buslistinv[bus_b],self.buslistinv[bus_a]
             self.ThetaMaxByEdge[(index_bus_b,index_bus_a)] = min(self.ThetaMaxByEdge[(index_bus_b,index_bus_a)],np.pi*(self.angmax[line]/180))
-        #Taking into account phase difference limit deduce from the flow constraints
-        #print('Starting Computation of Phase Difference Limits from Line Constraints')
+        # #Taking into account phase difference limit deduce from the flow constraints
+        
+
+        print('Starting Computation of Phase Difference Limits from Line Constraints')
         for idx_line,line in enumerate(self.clinelistinv):
             b,a,h = line
             index_bus_b,index_bus_a = self.buslistinv[b],self.buslistinv[a]
@@ -333,6 +335,7 @@ class ACOPFinstance():
                 #region.plot(self.name+'_{0}_{1}'.format(index_bus_b,index_bus_a))
                 self.ThetaMinByEdge[(index_bus_b,index_bus_a)] = max(self.ThetaMinByEdge[(index_bus_b,index_bus_a)],region.phimin)
                 self.ThetaMaxByEdge[(index_bus_b,index_bus_a)] = min(self.ThetaMaxByEdge[(index_bus_b,index_bus_a)],region.phimax)
+    
             
         for i,j in self.SymEdgesNoDiag:
             self.ThetaMinByEdge[(i,j)] = max(self.ThetaMinByEdge[(i,j)], -self.ThetaMaxByEdge[(j,i)])
@@ -345,6 +348,7 @@ class ACOPFinstance():
             self.ThetaMinByEdge[(i,j)] = max(self.ThetaMinByEdge[(i,j)], -self.ThetaMaxByEdge[(j,i)])
             self.ThetaMaxByEdge[(i,j)] = min(self.ThetaMaxByEdge[(i,j)], -self.ThetaMinByEdge[(j,i)])
         
+                
     def FloydWarshallOnClique(self,idx_clique):
         cl = self.cliques[idx_clique]
         for k in cl:

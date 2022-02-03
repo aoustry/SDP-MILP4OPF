@@ -81,7 +81,7 @@ class PhaseDiffBound():
 
     def scanning_phimax(self, N):
         phi1,phi2 = -np.pi, np.pi
-        while abs(phi2-phi1)>1E-6:
+        while abs(phi2-phi1)>1E-8:
             assert(phi2>phi1)
             discretization_rad = (phi2-phi1)/N
             minimal_distance = abs(np.exp(1j*discretization_rad)-1)
@@ -106,7 +106,7 @@ class PhaseDiffBound():
     
     def scanning_phimin(self, N):
         phi1,phi2 = -np.pi, np.pi
-        while abs(phi2-phi1)>1E-6:
+        while abs(phi2-phi1)>1E-8:
             assert(phi2>phi1)
             discretization_rad = (phi2-phi1)/N
             minimal_distance = abs(np.exp(1j*discretization_rad)-1)
