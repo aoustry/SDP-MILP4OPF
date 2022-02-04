@@ -332,8 +332,7 @@ class EnhancedSdpRelaxer():
                     Nt = Matrix.sparse(2*nc,2*nc,Nt.row, Nt.col, Nt.data)
                     M.constraint(Expr.dot(Nf,X[idx_clique]), Domain.lessThan((self.Imax[idx_line]**2)))
                     M.constraint(Expr.dot(Nt,X[idx_clique]), Domain.lessThan((self.Imax[idx_line]**2)))
-            else:
-                assert(self.config['lineconstraints']=='S')
+            elif self.config['lineconstraints']=='S':
                 for idx_line,line in enumerate(self.clinelistinv):
                     b,a,h = line
                     index_bus_b,index_bus_a = self.buslistinv[b],self.buslistinv[a]
@@ -351,7 +350,8 @@ class EnhancedSdpRelaxer():
                     rex = Expr.add(Expr.mul(np.real(self.Ytt[line]),A[clique].index(local_index_bus_b,local_index_bus_b)),Expr.add(Expr.mul(np.real(self.Ytf[line]),A[clique].index(local_index_bus_b,local_index_bus_a)),Expr.mul(np.imag(self.Ytf[line]),B[clique].index(local_index_bus_b,local_index_bus_a))))
                     imx = Expr.add(Expr.mul(-np.imag(self.Ytt[line]),A[clique].index(local_index_bus_b,local_index_bus_b)),Expr.add(Expr.mul(-np.imag(self.Ytf[line]),A[clique].index(local_index_bus_b,local_index_bus_a)),Expr.mul(np.real(self.Ytf[line]),B[clique].index(local_index_bus_b,local_index_bus_a))))
                     M.constraint(Expr.vstack(self.Imax[idx_line],rex,imx), Domain.inQCone(3))
-                    
+            else:
+                assert(self.config['lineconstraints']==False)
             
             #Overlapping constraints for W
             for clique_idx in range(self.cliques_nbr):

@@ -84,7 +84,7 @@ class piecewiseRelaxer():
         # #Construct m_cb matrices
         self.HM, self.ZM = ACOPF.HM, ACOPF.ZM
         self.config['lineconstraints'] = ACOPF.config['lineconstraints']
-        assert( ACOPF.config['lineconstraints']=='I' or ACOPF.config['lineconstraints']=='S')
+        assert( ACOPF.config['lineconstraints']=='I' or ACOPF.config['lineconstraints']=='S' or ACOPF.config['lineconstraints']==False)
         if self.config['lineconstraints']=='I':
             self.Nf, self.Nt = ACOPF.Nf, ACOPF.Nt
         else:
@@ -222,8 +222,9 @@ class piecewiseRelaxer():
                 dicoNtlineRe = {(row[aux],col[aux]):np.real(self.Nt[idx_line][row[aux],col[aux]]) for aux in range(len(row))}
                 dicoNtlineIm = {(row[aux],col[aux]):np.imag(self.Nt[idx_line][row[aux],col[aux]]) for aux in range(len(row))}
                 self.mdl.add_constraint(self.mdl.sum([self.ReW[i,j]*dicoNtlineRe[i,j] for i,j in dicoNtlineRe]) + self.mdl.sum([self.ImW[i,j]*dicoNtlineIm[i,j] for i,j in dicoNtlineIm]) <=self.Imax[idx_line]**2)
-        else:
-            assert(self.config['lineconstraints']=='S')
+        elif self.config['lineconstraints']=='S':
+            
+            
             for idx_line,line in enumerate(self.clinelistinv):
                 b,a,h = line
                 index_bus_b,index_bus_a = self.buslistinv[b],self.buslistinv[a]
@@ -253,6 +254,9 @@ class piecewiseRelaxer():
                     coefRWba = np.cos(theta)*np.real(self.Ytf[line]) - np.sin(theta)*np.imag(self.Ytf[line])
                     coefIWba = np.cos(theta)*np.imag(self.Ytf[line]) + np.sin(theta)*np.real(self.Ytf[line])
                     self.mdl.add_constraint(coefRWbb*self.ReW[index_bus_b,index_bus_b]+coefRWba*self.ReW[index_bus_b,index_bus_a]+coefIWba*self.ImW[index_bus_b,index_bus_a]<=self.Imax[idx_line])
+        
+        else:
+            assert(self.config['lineconstraints']==False)
         ########################################## Discretization constraints #######################################################################   
         #Voltage magnitude discretization
         for b in range(self.n):
@@ -345,9 +349,11 @@ class piecewiseRelaxer():
                 df['sdp_measure'] = self.sdpmeasurelogs
                 if self.config['lineconstraints']=='I':
                     df.to_csv('output_I/'+self.name+'_global_logs.csv')
-                else:
+                elif (self.config['lineconstraints']=='S'):
                     assert(self.config['lineconstraints']=='S')
                     df.to_csv('output_S/'+self.name+'_global_logs.csv')
+                else:
+                    df.to_csv('output_no_lim/'+self.name+'_global_logs.csv')
                 
                 if (self.UB-self.bestLB)<rel_tol*self.UB:
                     print("Gap closed, MIPS solution is optimal")

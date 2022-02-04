@@ -312,9 +312,7 @@ class ACOPFinstance():
                 region = PhaseDiffBound.PhaseDiffBound(z,l,u,R)
                 self.ThetaMinByEdge[(index_bus_b,index_bus_a)] = max(self.ThetaMinByEdge[(index_bus_b,index_bus_a)],region.phimin)
                 self.ThetaMaxByEdge[(index_bus_b,index_bus_a)] = min(self.ThetaMaxByEdge[(index_bus_b,index_bus_a)],region.phimax)
-            else:
-
-                assert(self.config['lineconstraints']=='S')
+            elif self.config['lineconstraints']=='S':
                 z = -np.conj(self.Yff[line]/self.Yft[line])
                 l = self.Vmin[index_bus_b]/self.Vmax[index_bus_a]
                 u = self.Vmax[index_bus_b]/self.Vmin[index_bus_a]

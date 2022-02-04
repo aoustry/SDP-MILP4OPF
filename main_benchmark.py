@@ -21,11 +21,8 @@ from mipsParser import mipsResultParser
 import BTSDPRelaxer
 from progress.bar import Bar
 
-
-
 #Instance parameters
-lineconstraints = 'S'
-
+lineconstraints = False
 
 #Main algo parameters
 maxit = 1e4
@@ -90,8 +87,10 @@ def load_instance_and_bound_tightening(name_instance):
     I = load_instance(name_instance)
     if lineconstraints=='I':
         folder = 'data/mips_outputs_lc'
-    else:
+    elif lineconstraints=='S':
         folder = 'data/mips_outputs_S'
+    else:
+        folder = 'data/mips_output_no_lim'
     localOptParser = mipsResultParser(folder,name_instance,I.baseMVA)
     
     
@@ -185,8 +184,10 @@ def global_algo(name_instance):
     I = load_instance(name_instance)
     if lineconstraints=='I':
         folder = 'data/mips_outputs_lc'
-    else:
+    elif lineconstraints=='S':
         folder = 'data/mips_outputs_S'
+    else:
+        folder = 'data/mips_output_no_lim'
     localOptParser = mipsResultParser(folder,name_instance,I.baseMVA)
     valSDP,X1,X2 = compute_sdp_cuts(I)
     if abs(localOptParser.value - valSDP)/localOptParser.value < reltol:
@@ -218,8 +219,16 @@ def global_algo(name_instance):
             f.write('Best-LB = {0}\n'.format(bestLB))
             f.write(status)
             f.close()
-    else:
+    elif lineconstraints=='S':
         with open('output_S/'+name_instance+'_global_status.txt','w') as f:
+            f.write('Time BT-SDP = {0}\n'.format(timeBTSDP))
+            f.write('BT-SDP value = {0} \n'.format(value))
+            f.write('Time MILP = {0} \n'.format(timeMILP))
+            f.write('Best-LB = {0}\n'.format(bestLB))
+            f.write(status)
+            f.close()
+    else:
+        with open('output_no_lim/'+name_instance+'_global_status.txt','w') as f:
             f.write('Time BT-SDP = {0}\n'.format(timeBTSDP))
             f.write('BT-SDP value = {0} \n'.format(value))
             f.write('Time MILP = {0} \n'.format(timeMILP))
@@ -229,27 +238,27 @@ def global_algo(name_instance):
         
         
 instances = [
-#        'WB2',
-#        'WB3',
-#        'WB5',
-#    'WB5mod',
-#    'case9mod',
-#   'case22loop',
-#  'case30loopmod',
-# 'case39mod1',
-#  'case39mod2',
-#  'case118mod',
-#  'case5',
-#   'case6ww',
-#  'case9',
-#  'case14',
-#  'case30',
-#  'case39',
-#  'case57',
-#  'case89pegase',
-#  'case118',
-#    'case300',
-#  'case300mod',
+        'WB2',
+        'WB3',
+        'WB5',
+    'WB5mod',
+    'case9mod',
+  'case22loop',
+  'case30loopmod',
+'case39mod1',
+  'case39mod2',
+  'case118mod',
+  'case5',
+  'case6ww',
+  'case9',
+  'case14',
+  'case30',
+  'case39',
+  'case57',
+  'case89pegase',
+  'case118',
+    'case300',
+  'case300mod',
  'pglib_opf_case118_ieee',
  'pglib_opf_case118_ieee__api',
  'pglib_opf_case118_ieee__sad',

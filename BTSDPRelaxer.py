@@ -335,8 +335,8 @@ class BTSDPRelaxer():
                     Nt = Matrix.sparse(2*nc,2*nc,Nt.row, Nt.col, Nt.data)
                     M.constraint(Expr.dot(Nf,X[idx_clique]), Domain.lessThan((self.Imax[idx_line]**2)))
                     M.constraint(Expr.dot(Nt,X[idx_clique]), Domain.lessThan((self.Imax[idx_line]**2)))
-            else:
-                assert(self.config['lineconstraints']=='S')
+            elif self.config['lineconstraints']=='S':
+                
                 for idx_line,line in enumerate(self.clinelistinv):
                     b,a,h = line
                     index_bus_b,index_bus_a = self.buslistinv[b],self.buslistinv[a]
@@ -368,7 +368,8 @@ class BTSDPRelaxer():
                     #     coefBba = np.cos(theta)*np.imag(self.Ytf[line]) + np.sin(theta)*np.real(self.Ytf[line])
                     #     #M.constraint(Expr.add(Expr.add(Expr.mul(coefAbb,A[clique].index(local_index_bus_b,local_index_bus_b)),Expr.mul(coefAba,A[clique].index(local_index_bus_b,local_index_bus_a))),Expr.mul(coefBba,B[clique].index(local_index_bus_b,local_index_bus_a))),Domain.lessThan(self.Imax[idx_line]))
                     
-            
+            else:
+                assert(self.config['lineconstraints']==False)
             #Overlapping constraints for W
             for clique_idx in range(self.cliques_nbr):
                 nc = self.ncliques[clique_idx]
@@ -553,8 +554,7 @@ class BTSDPRelaxer():
                     Nt = Matrix.sparse(2*nc,2*nc,Nt.row, Nt.col, Nt.data)
                     M.constraint(Expr.dot(Nf,X[idx_clique]), Domain.lessThan((self.Imax[idx_line]**2)))
                     M.constraint(Expr.dot(Nt,X[idx_clique]), Domain.lessThan((self.Imax[idx_line]**2)))
-            else:
-                assert(self.config['lineconstraints']=='S')
+            elif self.config['lineconstraints']=='S':
                 for idx_line,line in enumerate(self.clinelistinv):
                     b,a,h = line
                     index_bus_b,index_bus_a = self.buslistinv[b],self.buslistinv[a]
@@ -768,8 +768,7 @@ class BTSDPRelaxer():
                     Nt = Matrix.sparse(2*nc,2*nc,Nt.row, Nt.col, Nt.data)
                     M.constraint(Expr.dot(Nf,X[idx_clique]), Domain.lessThan((self.Imax[idx_line]**2)))
                     M.constraint(Expr.dot(Nt,X[idx_clique]), Domain.lessThan((self.Imax[idx_line]**2)))
-            else:
-                assert(self.config['lineconstraints']=='S')
+            elif self.config['lineconstraints']=='S':
                 for idx_line,line in enumerate(self.clinelistinv):
                     b,a,h = line
                     index_bus_b,index_bus_a = self.buslistinv[b],self.buslistinv[a]
@@ -982,8 +981,7 @@ class BTSDPRelaxer():
                     Nt = Matrix.sparse(2*nc,2*nc,Nt.row, Nt.col, Nt.data)
                     M.constraint(Expr.dot(Nf,X[idx_clique]), Domain.lessThan((self.Imax[idx_line]**2)))
                     M.constraint(Expr.dot(Nt,X[idx_clique]), Domain.lessThan((self.Imax[idx_line]**2)))
-            else:
-                assert(self.config['lineconstraints']=='S')
+            elif self.config['lineconstraints']=='S':
                 for idx_line,line in enumerate(self.clinelistinv):
                     b,a,h = line
                     index_bus_b,index_bus_a = self.buslistinv[b],self.buslistinv[a]
