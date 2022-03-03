@@ -1,5 +1,7 @@
-Time BT-SDP = 6.243757963180542
-BT-SDP value = 8208.514823814514 
-Time MILP = 0 
-Best-LB = 8208.514823814514
+Time BT-SDP = 5.052758455276489 
+BT-SDP value = 8208.514810243067 
+Time MILP = 0
+Total iteration number = 0
+Best-LB = 8208.514810243067
+Best-gap = 3.52995554400471e-08
 Strengthened SDP relaxation has no gap 

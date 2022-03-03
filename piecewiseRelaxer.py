@@ -573,7 +573,6 @@ class piecewiseRelaxer():
                 self.mdl.add_lazy_constraint(M[0,0]+ self.mdl.sum([self.L[b]*dicoM_partL1[b] for b in dicoM_partL1]) + self.mdl.sum([self.L[b]*dicoM_partL2[b] for b in dicoM_partL2]) + self.mdl.sum([self.R[b,a]*dicoM_partR[b,a] for b,a in dicoM_partR]) >=0)
             
     def add_UB(self,ub):
-        
         self.mdl.add_constraint(self.objective<=ub)
     
     def add_sdp_duals_W(self, X):
@@ -598,8 +597,6 @@ class piecewiseRelaxer():
     
     
 ##### Functions to increment the number of binary variables
-    
-    
     def add_detail_delta(self,edge):
         b,a = edge
         new = []
@@ -634,21 +631,46 @@ class piecewiseRelaxer():
             assert(abs(self.delta[edge,parent].solution_value-1)<1E-5)
             val = np.angle(self.ReW[b,a].solution_value + 1j*self.ImW[b,a].solution_value)
             if abs( self.phimin[edge,parent]-val)>1E-7 and abs( self.phimax[edge,parent]-val)>1E-7:
-                self.binaries = True
-                self.delta_leaves[edge].remove(parent)
-                K = len(self.delta_indices[edge])
-                self.delta_indices[edge].append(K)
-                self.delta_indices[edge].append(K+1)
-                self.delta_leaves[edge].append(K)
-                self.delta_leaves[edge].append(K+1)
-                self.delta_parents[edge,K] = parent
-                self.delta_parents[edge,K+1] = parent
-                self.phimin[edge,K],self.phimax[edge,K] = self.phimin[edge,parent],val
-                self.phimin[edge,K+1],self.phimax[edge,K+1] = val, self.phimax[edge,parent]
-                self.delta[edge,K],self.delta[edge,K+1] = self.mdl.binary_var(),self.mdl.binary_var()
-                self.mdl.add_constraint(self.delta[edge,K]+self.delta[edge,K+1] ==self.delta[edge,parent])
-                new = [K,K+1]
-        
+                L = self.phimax[edge,parent]-self.phimin[edge,parent]
+                assert(L>0)
+                if val>0.2*L+self.phimin[edge,parent] and val<self.phimax[edge,parent] - 0.2*L:
+                    "If the current value is not to close from its interval's bounds."
+                    self.binaries = True
+                    self.delta_leaves[edge].remove(parent)
+                    K = len(self.delta_indices[edge])
+                    self.delta_indices[edge].append(K)
+                    self.delta_indices[edge].append(K+1)
+                    self.delta_leaves[edge].append(K)
+                    self.delta_leaves[edge].append(K+1)
+                    self.delta_parents[edge,K] = parent
+                    self.delta_parents[edge,K+1] = parent
+                    self.phimin[edge,K],self.phimax[edge,K] = self.phimin[edge,parent],val
+                    self.phimin[edge,K+1],self.phimax[edge,K+1] = val, self.phimax[edge,parent]
+                    self.delta[edge,K],self.delta[edge,K+1] = self.mdl.binary_var(),self.mdl.binary_var()
+                    self.mdl.add_constraint(self.delta[edge,K]+self.delta[edge,K+1] ==self.delta[edge,parent])
+                    new = [K,K+1]
+                else:
+                    value1,value2 = min(val,0.2*L+self.phimin[edge,parent]),max(val,self.phimax[edge,parent] - 0.2*L)
+                    assert(value1<value2)
+                    self.binaries = True
+                    self.delta_leaves[edge].remove(parent)
+                    K = len(self.delta_indices[edge])
+                    self.delta_indices[edge].append(K)
+                    self.delta_indices[edge].append(K+1)
+                    self.delta_indices[edge].append(K+2)
+                    self.delta_leaves[edge].append(K)
+                    self.delta_leaves[edge].append(K+1)
+                    self.delta_leaves[edge].append(K+2)
+                    self.delta_parents[edge,K] = parent
+                    self.delta_parents[edge,K+1] = parent
+                    self.delta_parents[edge,K+2] = parent
+                    self.phimin[edge,K],self.phimax[edge,K] = self.phimin[edge,parent],value1
+                    self.phimin[edge,K+1],self.phimax[edge,K+1] = value1, value2
+                    self.phimin[edge,K+2],self.phimax[edge,K+2] = value2, self.phimax[edge,parent]
+                    self.delta[edge,K],self.delta[edge,K+1],self.delta[edge,K+2] = self.mdl.binary_var(),self.mdl.binary_var(),self.mdl.binary_var()
+                    self.mdl.add_constraint(self.delta[edge,K]+self.delta[edge,K+1]+self.delta[edge,K+2] ==self.delta[edge,parent])
+                    new = [K,K+1,K+2]
+                    
         if len(new)>0:
             self.mdl.add_constraint(self.mdl.sum([self.phimin[edge,k]*self.delta[edge,k] for k in self.delta_leaves[edge]])<=self.theta[b]- self.theta[a])
             self.mdl.add_constraint(self.theta[b]- self.theta[a]<= self.mdl.sum([self.phimax[edge,k]*self.delta[edge,k] for k in self.delta_leaves[edge]]))
@@ -693,23 +715,50 @@ class piecewiseRelaxer():
             assert(self.umin[b,parent]<=val+1E-7)
             assert(self.umax[b,parent]>=val-1E-7)
             if abs(self.umin[b,parent]-val)>1E-7 and abs(self.umax[b,parent]-val)>1E-7:
-                self.binaries = True
-                self.x_leaves[b].remove(parent)
-                K = len(self.x_indices[b])
-                self.x_indices[b].append(K)
-                self.x_indices[b].append(K+1)
-                self.x_leaves[b].append(K)
-                self.x_leaves[b].append(K+1)
-                self.x_parents[b,K] = parent
-                self.x_parents[b,K+1] = parent
-                
-                self.umin[b,K],self.umax[b,K] = self.umin[b,parent],val
-                self.umin[b,K+1],self.umax[b,K+1] = val, self.umax[b,parent]
-                assert(abs(self.umin[b,K]-self.umax[b,K])>1e-8)
-                assert(abs(self.umin[b,K+1]-self.umax[b,K+1])>1e-8)
-                self.x[b,K],self.x[b,K+1] = self.mdl.binary_var(),self.mdl.binary_var()
-                self.mdl.add_constraint(self.x[b,K]+self.x[b,K+1] ==self.x[b,parent])
-                new = [K,K+1]
+                L = self.umax[b,parent] - self.umin[b,parent]
+                assert(L>0)
+                if val>0.2*L+self.umin[b,parent] and val<self.umax[b,parent] - 0.2*L:
+                    "If the current value is not to close from its interval's bounds."
+                    self.binaries = True
+                    self.x_leaves[b].remove(parent)
+                    K = len(self.x_indices[b])
+                    self.x_indices[b].append(K)
+                    self.x_indices[b].append(K+1)
+                    self.x_leaves[b].append(K)
+                    self.x_leaves[b].append(K+1)
+                    self.x_parents[b,K] = parent
+                    self.x_parents[b,K+1] = parent
+                    
+                    self.umin[b,K],self.umax[b,K] = self.umin[b,parent],val
+                    self.umin[b,K+1],self.umax[b,K+1] = val, self.umax[b,parent]
+                    assert(abs(self.umin[b,K]-self.umax[b,K])>1e-8)
+                    assert(abs(self.umin[b,K+1]-self.umax[b,K+1])>1e-8)
+                    self.x[b,K],self.x[b,K+1] = self.mdl.binary_var(),self.mdl.binary_var()
+                    self.mdl.add_constraint(self.x[b,K]+self.x[b,K+1] ==self.x[b,parent])
+                    new = [K,K+1]
+                else:
+                    self.binaries = True
+                    self.x_leaves[b].remove(parent)
+                    value1,value2 = min(val,0.2*L+self.umin[b,parent]), max(val,self.umax[b,parent] - 0.2*L)
+                    assert(value1<value2)
+                    K = len(self.x_indices[b])
+                    self.x_indices[b].append(K)
+                    self.x_indices[b].append(K+1)
+                    self.x_indices[b].append(K+2)
+                    self.x_leaves[b].append(K)
+                    self.x_leaves[b].append(K+1)
+                    self.x_leaves[b].append(K+2)
+                    self.x_parents[b,K] = parent
+                    self.x_parents[b,K+1] = parent
+                    self.x_parents[b,K+2] = parent
+                    self.umin[b,K],self.umax[b,K] = self.umin[b,parent],value1
+                    self.umin[b,K+1],self.umax[b,K+1] = value1, value2
+                    self.umin[b,K+2],self.umax[b,K+2] = val, self.umax[b,parent]
+                    assert(abs(self.umin[b,K]-self.umax[b,K])>1e-8)
+                    assert(abs(self.umin[b,K+1]-self.umax[b,K+1])>1e-8)
+                    self.x[b,K],self.x[b,K+1],self.x[b,K+2]  = self.mdl.binary_var(),self.mdl.binary_var(),self.mdl.binary_var()
+                    self.mdl.add_constraint(self.x[b,K]+self.x[b,K+1]+self.x[b,K+2] ==self.x[b,parent])
+                    new = [K,K+1,K+2]
         
         
         if len(new)>0:
@@ -742,6 +791,7 @@ class piecewiseRelaxer():
             else:
                 sol.add_var_value(self.Pgen2[i],0)
             sol.add_var_value(self.Qgen[i],self.local_optimizer_results.Qg[gen_index[i]])
+        
         print("MIP start Value = {0}".format(val))
         for i in range(self.n):
             sol.add_var_value(self.L[i],self.local_optimizer_results.VM[i])
@@ -770,86 +820,6 @@ class piecewiseRelaxer():
         #assert(sol.is_feasible_solution(silent=False,tolerance = 1e-4))
         self.mdl.add_mip_start(sol)
         
-    # def FindShortCuts(self):
-    #     for edge in self.edgesNoDiag:
-    #         if len(self.delta_leaves[edge])>0:
-    #             delta_values = np.array([ self.delta[edge,k].solution_value for k in self.delta_leaves[edge]])
-    #             parent = self.delta_leaves[edge][delta_values.argmax()]
-    #             assert(abs(self.delta[edge,parent].solution_value-1)<1E-5)
-    #             self.auxFindShortCuts(edge,self.phimin[edge,parent],self.phimax[edge,parent])
-                
-    # def FindShortCuts_quad(self):
-    #     for edge in self.edgesNoDiag:
-    #         if len(self.delta_leaves[edge])>0:
-    #             delta_values = np.array([ self.delta[edge,k].solution_value for k in self.delta_leaves[edge]])
-    #             parent = self.delta_leaves[edge][delta_values.argmax()]
-    #             assert(abs(self.delta[edge,parent].solution_value-1)<1E-5)
-    #             for edge2 in self.edgesNoDiag:
-    #                 if edge2!=edge and len(self.delta_leaves[edge2])>0:
-    #                     delta_values2 = np.array([ self.delta[edge2,k].solution_value for k in self.delta_leaves[edge2]])
-    #                     parent2 = self.delta_leaves[edge2][delta_values2.argmax()]
-    #                     assert(abs(self.delta[edge2,parent2].solution_value-1)<1E-5)
-    #                     self.auxFindShortCuts_quad(edge,edge2,self.phimin[edge,parent],self.phimax[edge,parent],self.phimin[edge2,parent2],self.phimax[edge2,parent2])
-    
-    # def auxFindShortCuts(self,edge,newphimin,newphimax):
-    #     copyThetaMinByEdge = dict(self.ThetaMinByEdge)
-    #     copyThetaMaxByEdge = dict(self.ThetaMaxByEdge)
-    #     copyThetaMinByEdge[edge] = newphimin
-    #     copyThetaMaxByEdge[edge] = newphimax
-    #     cl = list(range(self.n))
-    #     for k in cl:
-    #         for i in cl:
-    #             if (i,k) in copyThetaMaxByEdge:
-    #                 for j in cl:
-    #                     if k!=i and k!=j and i!=j and ((i,j) in copyThetaMaxByEdge) and ((k,j) in copyThetaMaxByEdge):
-    #                         copyThetaMaxByEdge[(i,j)] = min(copyThetaMaxByEdge[(i,j)],copyThetaMaxByEdge[(i,k)]+copyThetaMaxByEdge[(k,j)])
-    #                         copyThetaMinByEdge[(i,j)] = -min(-copyThetaMinByEdge[(i,j)],-copyThetaMinByEdge[(i,k)]-copyThetaMinByEdge[(k,j)])
-    #     for (i,j) in copyThetaMinByEdge:
-    #         if (i,j)!=edge :
-    #             val = np.angle(self.ReW[i,j].solution_value + 1j*self.ImW[i,j].solution_value)
-    #             if copyThetaMinByEdge[(i,j)]>val or copyThetaMaxByEdge[(i,j)]<val:
-    #                 print("angle",edge,(i,j),copyThetaMinByEdge[(i,j)],val,copyThetaMaxByEdge[(i,j)])
-    #             halfdiff =  0.5*(copyThetaMaxByEdge[(i,j)]- copyThetaMinByEdge[(i,j)])
-    #             mean =  0.5*(copyThetaMaxByEdge[(i,j)] + copyThetaMinByEdge[(i,j)])
-                
-    #             if np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value < self.R[i,j].solution_value*np.cos(halfdiff):
-    #                 print("diag",edge,(i,j), np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value - self.R[i,j].solution_value*np.cos(halfdiff))
-                
-                            
-    # def auxFindShortCuts_quad(self,edge,edge2,newphimin,newphimax,newphimin2,newphimax2):
-    #     copyThetaMinByEdge = dict(self.ThetaMinByEdge)
-    #     copyThetaMaxByEdge = dict(self.ThetaMaxByEdge)
-    #     copyThetaMinByEdge[edge] = newphimin
-    #     copyThetaMaxByEdge[edge] = newphimax
-    #     copyThetaMinByEdge[edge2] = newphimin2
-    #     copyThetaMaxByEdge[edge2] = newphimax2
-    #     cl = list(range(self.n))
-    #     for k in cl:
-    #         for i in cl:
-    #             if (i,k) in copyThetaMaxByEdge:
-    #                 for j in cl:
-    #                     if k!=i and k!=j and i!=j and ((i,j) in copyThetaMaxByEdge) and ((k,j) in copyThetaMaxByEdge):
-    #                         copyThetaMaxByEdge[(i,j)] = min(copyThetaMaxByEdge[(i,j)],copyThetaMaxByEdge[(i,k)]+copyThetaMaxByEdge[(k,j)])
-    #                         copyThetaMinByEdge[(i,j)] = -min(-copyThetaMinByEdge[(i,j)],-copyThetaMinByEdge[(i,k)]-copyThetaMinByEdge[(k,j)])
-    #     for (i,j) in copyThetaMinByEdge:
-    #             val = np.angle(self.ReW[i,j].solution_value + 1j*self.ImW[i,j].solution_value)
-    #             if copyThetaMinByEdge[(i,j)]>val or copyThetaMaxByEdge[(i,j)]<val:
-    #                 print("angle",edge,edge2,(i,j),copyThetaMinByEdge[(i,j)],val,copyThetaMaxByEdge[(i,j)])
-    #             halfdiff =  0.5*(copyThetaMaxByEdge[(i,j)]- copyThetaMinByEdge[(i,j)])
-    #             mean =  0.5*(copyThetaMaxByEdge[(i,j)] + copyThetaMinByEdge[(i,j)])
-                
-    #             if np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value < self.R[i,j].solution_value*np.cos(halfdiff):
-    #                 print("diag",edge,edge2,(i,j), np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value - self.R[i,j].solution_value*np.cos(halfdiff))
-                
-   
-    # def FindIncoherentTriplets(self):
-    #     for edge in self.edgesNoDiag:
-    #         for edge2 in self.edgesNoDiag:
-    #             if ((edge2[1],edge[0]) in self.ReW) and edge[1]==edge2[0]:
-    #                 val = np.angle(self.ReW[edge[0],edge[1]].solution_value + 1j*self.ImW[edge[0],edge[1]].solution_value)
-    #                 val2 = np.angle(self.ReW[edge2[0],edge2[1]].solution_value + 1j*self.ImW[edge2[0],edge2[1]].solution_value)
-    #                 val3 = np.angle(self.ReW[edge2[1],edge[0]].solution_value + 1j*self.ImW[edge2[1],edge[0]].solution_value)
-    #                 print(edge,edge2,val+val2+val3)
 
     def diagnosis(self):
         print("Objective value = {0}".format(self.mdl.objective_value))
