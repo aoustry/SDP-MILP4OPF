@@ -20,6 +20,7 @@ kdiscret2 = 3
 max_number_of_new_BP = 4
 k_for_slimit = 4
 rank_one_ratio = 5 * 1e-6
+max_local_it = 20
 
 class piecewiseRelaxer():
     
@@ -228,11 +229,6 @@ class piecewiseRelaxer():
             for idx_line,line in enumerate(self.clinelistinv):
                 b,a,h = line
                 index_bus_b,index_bus_a = self.buslistinv[b],self.buslistinv[a]
-                ##Version MIQCP
-                # rex = np.real(self.Yff[line]) * self.ReW[index_bus_b,index_bus_b] + np.real(self.Yft[line]) * self.ReW[index_bus_b,index_bus_a] + np.imag(self.Yft[line])* self.ImW[index_bus_b,index_bus_a]
-                # imx = -np.imag(self.Yff[line]) * self.ReW[index_bus_b,index_bus_b] -np.imag(self.Yft[line])* self.ReW[index_bus_b,index_bus_a] + np.real(self.Yft[line]) * self.ImW[index_bus_b,index_bus_a]
-                # self.mdl.add_constraint(rex**2+imx**2<=self.Imax[idx_line]**2)
-                ##Version MILP
                 for k in range(k_for_slimit):
                     theta = -np.pi + 2*(k/k_for_slimit)*np.pi
                     coefRWbb = np.cos(theta)*np.real(self.Yff[line]) - np.sin(theta)*np.imag(self.Yff[line])
@@ -243,11 +239,6 @@ class piecewiseRelaxer():
                 aux = index_bus_b
                 index_bus_b = index_bus_a
                 index_bus_a = aux
-                # ##Version MIQCP
-                # rex =np.real(self.Ytt[line]) * self.ReW[index_bus_b,index_bus_b] + np.real(self.Ytf[line]) * self.ReW[index_bus_b,index_bus_a] + np.imag(self.Ytf[line])* self.ImW[index_bus_b,index_bus_a]
-                # imx = -np.imag(self.Ytt[line])* self.ReW[index_bus_b,index_bus_b] -np.imag(self.Ytf[line])* self.ReW[index_bus_b,index_bus_a] + np.real(self.Ytf[line]) * self.ImW[index_bus_b,index_bus_a]
-                # self.mdl.add_constraint(rex**2+imx**2<=self.Imax[idx_line]**2)
-                ##Version MILP
                 for k in range(k_for_slimit):
                     theta = -np.pi + 2*(k/k_for_slimit)*np.pi
                     coefRWbb = np.cos(theta)*np.real(self.Ytt[line]) - np.sin(theta)*np.imag(self.Ytt[line])
@@ -295,7 +286,6 @@ class piecewiseRelaxer():
         self.mdl.add_constraint(self.theta[0]==0)
         ##################################################################################################################################################################################################################################
         for b,a in self.edgesNoDiag:
-            #self.mdl.add_constraint(self.ReW[b,a]**2 + self.ImW[b,a]**2<=self.R[b,a]**2)
             for k in range(kdiscret2+1):
                 theta = self.ThetaMinByEdge[b,a] + (k/kdiscret2)*(self.ThetaMaxByEdge[b,a]-self.ThetaMinByEdge[b,a])
                 self.mdl.add_constraint(self.ReW[b,a]*np.cos(theta) + self.ImW[b,a]*np.sin(theta)<=self.R[b,a])
@@ -304,11 +294,11 @@ class piecewiseRelaxer():
     def solve(self,timelimit,maxit,rel_tol, ubcuts,with_lazy_random_sdp_cuts):
         self.mdl.context.solver.log_output = True
         self.mdl.parameters.emphasis.numerical = 1
-        self.mdl.parameters.mip.tolerances.mipgap = 0.5*1E-4#1E-7
+        self.mdl.parameters.mip.tolerances.mipgap = 0.5*rel_tol
         #self.mdl.parameters.read.scale = -1
         self.mdl.parameters.simplex.tolerances.feasibility = 1E-9
       
-        it =  0
+        self.total_it_number = it =  0
         self.UB = self.local_optimizer_results.value
         self.bestLBlogs = []
         self.maxratiologs  = []
@@ -322,38 +312,33 @@ class piecewiseRelaxer():
             local_it= 0
             self.sdp_error, self.flow_error, self.obj_error = 1,1,1
             convex_tol = 1E-4
-            while (max(self.sdp_error, max(self.flow_error, self.obj_error)))>min(1E-4,convex_tol) and (local_it<20):
+            while (max(self.sdp_error, max(self.flow_error, self.obj_error)))>min(1E-4,convex_tol) and (local_it<max_local_it):
                 local_it+=1
                 remaining_time = max(0,deadline - time.time())
                 if remaining_time==0:
                     return "Time limit"
                 self.mdl.set_time_limit(remaining_time)
                 self.mdl.solve()
+                self.total_it_number+=1
                 print(self.mdl.solve_details.status)
                 if 'time limit' in self.mdl.solve_details.status:
                      return "Time limit"
+                 
                 if ubcuts and self.mdl.objective_value>self.bestLB:
                     self.mdl.add_constraint(self.objective>=self.bestLB-(1e-7*abs(self.bestLB)))
                 new_bound = self.mdl.solve_details.best_bound if self.binaries else self.mdl.objective_value
                 self.bestLB = max(self.bestLB,new_bound)
                 self.bestLBlogs.append(self.bestLB)
+                
                 print("Best bound = {0}".format(self.bestLB))
                 print("Objective value = {0}".format(self.mdl.objective_value))
                 print("Relative gap = {0}".format((self.UB-self.bestLB)/self.UB))
+                
                 rank_one, sdp, quad_obj,bool_lineconstraints = self.cp_procedure()
+                
                 print(rank_one, sdp, quad_obj,bool_lineconstraints)
-                df = pd.DataFrame()
-                df['gap'] = (np.ones(len(self.bestLBlogs))*self.UB - np.array(self.bestLBlogs))/self.UB
-                df['LB'] = self.bestLBlogs
-                df['rank_ratio'] = self.maxratiologs
-                df['sdp_measure'] = self.sdpmeasurelogs
-                if self.config['lineconstraints']=='I':
-                    df.to_csv('output_I/'+self.name+'_global_logs.csv')
-                elif (self.config['lineconstraints']=='S'):
-                    assert(self.config['lineconstraints']=='S')
-                    df.to_csv('output_S/'+self.name+'_global_logs.csv')
-                else:
-                    df.to_csv('output_no_lim/'+self.name+'_global_logs.csv')
+                
+                self.iteration_log()
                 
                 if (self.UB-self.bestLB)<rel_tol*self.UB:
                     print("Gap closed, MIPS solution is optimal")
@@ -377,7 +362,7 @@ class piecewiseRelaxer():
             edges_norm_violation_angle.sort(key=operator.itemgetter(2),reverse = True)
             edges_norm_violation_prod.sort(key=operator.itemgetter(2),reverse = True)
             convex_tol = 0.05*(edges_norm_violation_angle[0][2]+edges_norm_violation_prod[0][2])
-            print('NC errors : {0}/{1}'.format(edges_norm_violation_angle[0][2],edges_norm_violation_prod[0][2]))
+            
             new_break_points = False
             
             for k in range(min(max_number_of_new_BP,len(edges_norm_violation_angle))):
@@ -397,6 +382,8 @@ class piecewiseRelaxer():
             self.add_mip_start()
             print("Best LB = {0}".format(self.bestLB))
         self.diagnosis()
+        
+        
         if it==maxit:
             return "Max number of it"
         else:
@@ -586,6 +573,7 @@ class piecewiseRelaxer():
                 self.mdl.add_lazy_constraint(M[0,0]+ self.mdl.sum([self.L[b]*dicoM_partL1[b] for b in dicoM_partL1]) + self.mdl.sum([self.L[b]*dicoM_partL2[b] for b in dicoM_partL2]) + self.mdl.sum([self.R[b,a]*dicoM_partR[b,a] for b,a in dicoM_partR]) >=0)
             
     def add_UB(self,ub):
+        
         self.mdl.add_constraint(self.objective<=ub)
     
     def add_sdp_duals_W(self, X):
@@ -607,6 +595,11 @@ class piecewiseRelaxer():
                 vector = vector.reshape((1+self.ncliques[i],1))
                 self.add_sdp_cutR(i, vector)
         
+    
+    
+##### Functions to increment the number of binary variables
+    
+    
     def add_detail_delta(self,edge):
         b,a = edge
         new = []
@@ -777,86 +770,86 @@ class piecewiseRelaxer():
         #assert(sol.is_feasible_solution(silent=False,tolerance = 1e-4))
         self.mdl.add_mip_start(sol)
         
-    def FindShortCuts(self):
-        for edge in self.edgesNoDiag:
-            if len(self.delta_leaves[edge])>0:
-                delta_values = np.array([ self.delta[edge,k].solution_value for k in self.delta_leaves[edge]])
-                parent = self.delta_leaves[edge][delta_values.argmax()]
-                assert(abs(self.delta[edge,parent].solution_value-1)<1E-5)
-                self.auxFindShortCuts(edge,self.phimin[edge,parent],self.phimax[edge,parent])
+    # def FindShortCuts(self):
+    #     for edge in self.edgesNoDiag:
+    #         if len(self.delta_leaves[edge])>0:
+    #             delta_values = np.array([ self.delta[edge,k].solution_value for k in self.delta_leaves[edge]])
+    #             parent = self.delta_leaves[edge][delta_values.argmax()]
+    #             assert(abs(self.delta[edge,parent].solution_value-1)<1E-5)
+    #             self.auxFindShortCuts(edge,self.phimin[edge,parent],self.phimax[edge,parent])
                 
-    def FindShortCuts_quad(self):
-        for edge in self.edgesNoDiag:
-            if len(self.delta_leaves[edge])>0:
-                delta_values = np.array([ self.delta[edge,k].solution_value for k in self.delta_leaves[edge]])
-                parent = self.delta_leaves[edge][delta_values.argmax()]
-                assert(abs(self.delta[edge,parent].solution_value-1)<1E-5)
-                for edge2 in self.edgesNoDiag:
-                    if edge2!=edge and len(self.delta_leaves[edge2])>0:
-                        delta_values2 = np.array([ self.delta[edge2,k].solution_value for k in self.delta_leaves[edge2]])
-                        parent2 = self.delta_leaves[edge2][delta_values2.argmax()]
-                        assert(abs(self.delta[edge2,parent2].solution_value-1)<1E-5)
-                        self.auxFindShortCuts_quad(edge,edge2,self.phimin[edge,parent],self.phimax[edge,parent],self.phimin[edge2,parent2],self.phimax[edge2,parent2])
+    # def FindShortCuts_quad(self):
+    #     for edge in self.edgesNoDiag:
+    #         if len(self.delta_leaves[edge])>0:
+    #             delta_values = np.array([ self.delta[edge,k].solution_value for k in self.delta_leaves[edge]])
+    #             parent = self.delta_leaves[edge][delta_values.argmax()]
+    #             assert(abs(self.delta[edge,parent].solution_value-1)<1E-5)
+    #             for edge2 in self.edgesNoDiag:
+    #                 if edge2!=edge and len(self.delta_leaves[edge2])>0:
+    #                     delta_values2 = np.array([ self.delta[edge2,k].solution_value for k in self.delta_leaves[edge2]])
+    #                     parent2 = self.delta_leaves[edge2][delta_values2.argmax()]
+    #                     assert(abs(self.delta[edge2,parent2].solution_value-1)<1E-5)
+    #                     self.auxFindShortCuts_quad(edge,edge2,self.phimin[edge,parent],self.phimax[edge,parent],self.phimin[edge2,parent2],self.phimax[edge2,parent2])
     
-    def auxFindShortCuts(self,edge,newphimin,newphimax):
-        copyThetaMinByEdge = dict(self.ThetaMinByEdge)
-        copyThetaMaxByEdge = dict(self.ThetaMaxByEdge)
-        copyThetaMinByEdge[edge] = newphimin
-        copyThetaMaxByEdge[edge] = newphimax
-        cl = list(range(self.n))
-        for k in cl:
-            for i in cl:
-                if (i,k) in copyThetaMaxByEdge:
-                    for j in cl:
-                        if k!=i and k!=j and i!=j and ((i,j) in copyThetaMaxByEdge) and ((k,j) in copyThetaMaxByEdge):
-                            copyThetaMaxByEdge[(i,j)] = min(copyThetaMaxByEdge[(i,j)],copyThetaMaxByEdge[(i,k)]+copyThetaMaxByEdge[(k,j)])
-                            copyThetaMinByEdge[(i,j)] = -min(-copyThetaMinByEdge[(i,j)],-copyThetaMinByEdge[(i,k)]-copyThetaMinByEdge[(k,j)])
-        for (i,j) in copyThetaMinByEdge:
-            if (i,j)!=edge :
-                val = np.angle(self.ReW[i,j].solution_value + 1j*self.ImW[i,j].solution_value)
-                if copyThetaMinByEdge[(i,j)]>val or copyThetaMaxByEdge[(i,j)]<val:
-                    print("angle",edge,(i,j),copyThetaMinByEdge[(i,j)],val,copyThetaMaxByEdge[(i,j)])
-                halfdiff =  0.5*(copyThetaMaxByEdge[(i,j)]- copyThetaMinByEdge[(i,j)])
-                mean =  0.5*(copyThetaMaxByEdge[(i,j)] + copyThetaMinByEdge[(i,j)])
+    # def auxFindShortCuts(self,edge,newphimin,newphimax):
+    #     copyThetaMinByEdge = dict(self.ThetaMinByEdge)
+    #     copyThetaMaxByEdge = dict(self.ThetaMaxByEdge)
+    #     copyThetaMinByEdge[edge] = newphimin
+    #     copyThetaMaxByEdge[edge] = newphimax
+    #     cl = list(range(self.n))
+    #     for k in cl:
+    #         for i in cl:
+    #             if (i,k) in copyThetaMaxByEdge:
+    #                 for j in cl:
+    #                     if k!=i and k!=j and i!=j and ((i,j) in copyThetaMaxByEdge) and ((k,j) in copyThetaMaxByEdge):
+    #                         copyThetaMaxByEdge[(i,j)] = min(copyThetaMaxByEdge[(i,j)],copyThetaMaxByEdge[(i,k)]+copyThetaMaxByEdge[(k,j)])
+    #                         copyThetaMinByEdge[(i,j)] = -min(-copyThetaMinByEdge[(i,j)],-copyThetaMinByEdge[(i,k)]-copyThetaMinByEdge[(k,j)])
+    #     for (i,j) in copyThetaMinByEdge:
+    #         if (i,j)!=edge :
+    #             val = np.angle(self.ReW[i,j].solution_value + 1j*self.ImW[i,j].solution_value)
+    #             if copyThetaMinByEdge[(i,j)]>val or copyThetaMaxByEdge[(i,j)]<val:
+    #                 print("angle",edge,(i,j),copyThetaMinByEdge[(i,j)],val,copyThetaMaxByEdge[(i,j)])
+    #             halfdiff =  0.5*(copyThetaMaxByEdge[(i,j)]- copyThetaMinByEdge[(i,j)])
+    #             mean =  0.5*(copyThetaMaxByEdge[(i,j)] + copyThetaMinByEdge[(i,j)])
                 
-                if np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value < self.R[i,j].solution_value*np.cos(halfdiff):
-                    print("diag",edge,(i,j), np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value - self.R[i,j].solution_value*np.cos(halfdiff))
+    #             if np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value < self.R[i,j].solution_value*np.cos(halfdiff):
+    #                 print("diag",edge,(i,j), np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value - self.R[i,j].solution_value*np.cos(halfdiff))
                 
                             
-    def auxFindShortCuts_quad(self,edge,edge2,newphimin,newphimax,newphimin2,newphimax2):
-        copyThetaMinByEdge = dict(self.ThetaMinByEdge)
-        copyThetaMaxByEdge = dict(self.ThetaMaxByEdge)
-        copyThetaMinByEdge[edge] = newphimin
-        copyThetaMaxByEdge[edge] = newphimax
-        copyThetaMinByEdge[edge2] = newphimin2
-        copyThetaMaxByEdge[edge2] = newphimax2
-        cl = list(range(self.n))
-        for k in cl:
-            for i in cl:
-                if (i,k) in copyThetaMaxByEdge:
-                    for j in cl:
-                        if k!=i and k!=j and i!=j and ((i,j) in copyThetaMaxByEdge) and ((k,j) in copyThetaMaxByEdge):
-                            copyThetaMaxByEdge[(i,j)] = min(copyThetaMaxByEdge[(i,j)],copyThetaMaxByEdge[(i,k)]+copyThetaMaxByEdge[(k,j)])
-                            copyThetaMinByEdge[(i,j)] = -min(-copyThetaMinByEdge[(i,j)],-copyThetaMinByEdge[(i,k)]-copyThetaMinByEdge[(k,j)])
-        for (i,j) in copyThetaMinByEdge:
-                val = np.angle(self.ReW[i,j].solution_value + 1j*self.ImW[i,j].solution_value)
-                if copyThetaMinByEdge[(i,j)]>val or copyThetaMaxByEdge[(i,j)]<val:
-                    print("angle",edge,edge2,(i,j),copyThetaMinByEdge[(i,j)],val,copyThetaMaxByEdge[(i,j)])
-                halfdiff =  0.5*(copyThetaMaxByEdge[(i,j)]- copyThetaMinByEdge[(i,j)])
-                mean =  0.5*(copyThetaMaxByEdge[(i,j)] + copyThetaMinByEdge[(i,j)])
+    # def auxFindShortCuts_quad(self,edge,edge2,newphimin,newphimax,newphimin2,newphimax2):
+    #     copyThetaMinByEdge = dict(self.ThetaMinByEdge)
+    #     copyThetaMaxByEdge = dict(self.ThetaMaxByEdge)
+    #     copyThetaMinByEdge[edge] = newphimin
+    #     copyThetaMaxByEdge[edge] = newphimax
+    #     copyThetaMinByEdge[edge2] = newphimin2
+    #     copyThetaMaxByEdge[edge2] = newphimax2
+    #     cl = list(range(self.n))
+    #     for k in cl:
+    #         for i in cl:
+    #             if (i,k) in copyThetaMaxByEdge:
+    #                 for j in cl:
+    #                     if k!=i and k!=j and i!=j and ((i,j) in copyThetaMaxByEdge) and ((k,j) in copyThetaMaxByEdge):
+    #                         copyThetaMaxByEdge[(i,j)] = min(copyThetaMaxByEdge[(i,j)],copyThetaMaxByEdge[(i,k)]+copyThetaMaxByEdge[(k,j)])
+    #                         copyThetaMinByEdge[(i,j)] = -min(-copyThetaMinByEdge[(i,j)],-copyThetaMinByEdge[(i,k)]-copyThetaMinByEdge[(k,j)])
+    #     for (i,j) in copyThetaMinByEdge:
+    #             val = np.angle(self.ReW[i,j].solution_value + 1j*self.ImW[i,j].solution_value)
+    #             if copyThetaMinByEdge[(i,j)]>val or copyThetaMaxByEdge[(i,j)]<val:
+    #                 print("angle",edge,edge2,(i,j),copyThetaMinByEdge[(i,j)],val,copyThetaMaxByEdge[(i,j)])
+    #             halfdiff =  0.5*(copyThetaMaxByEdge[(i,j)]- copyThetaMinByEdge[(i,j)])
+    #             mean =  0.5*(copyThetaMaxByEdge[(i,j)] + copyThetaMinByEdge[(i,j)])
                 
-                if np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value < self.R[i,j].solution_value*np.cos(halfdiff):
-                    print("diag",edge,edge2,(i,j), np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value - self.R[i,j].solution_value*np.cos(halfdiff))
+    #             if np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value < self.R[i,j].solution_value*np.cos(halfdiff):
+    #                 print("diag",edge,edge2,(i,j), np.cos(mean)*self.ReW[i,j].solution_value + np.sin(mean)*self.ImW[i,j].solution_value - self.R[i,j].solution_value*np.cos(halfdiff))
                 
    
-    def FindIncoherentTriplets(self):
-        for edge in self.edgesNoDiag:
-            for edge2 in self.edgesNoDiag:
-                if ((edge2[1],edge[0]) in self.ReW) and edge[1]==edge2[0]:
-                    val = np.angle(self.ReW[edge[0],edge[1]].solution_value + 1j*self.ImW[edge[0],edge[1]].solution_value)
-                    val2 = np.angle(self.ReW[edge2[0],edge2[1]].solution_value + 1j*self.ImW[edge2[0],edge2[1]].solution_value)
-                    val3 = np.angle(self.ReW[edge2[1],edge[0]].solution_value + 1j*self.ImW[edge2[1],edge[0]].solution_value)
-                    print(edge,edge2,val+val2+val3)
+    # def FindIncoherentTriplets(self):
+    #     for edge in self.edgesNoDiag:
+    #         for edge2 in self.edgesNoDiag:
+    #             if ((edge2[1],edge[0]) in self.ReW) and edge[1]==edge2[0]:
+    #                 val = np.angle(self.ReW[edge[0],edge[1]].solution_value + 1j*self.ImW[edge[0],edge[1]].solution_value)
+    #                 val2 = np.angle(self.ReW[edge2[0],edge2[1]].solution_value + 1j*self.ImW[edge2[0],edge2[1]].solution_value)
+    #                 val3 = np.angle(self.ReW[edge2[1],edge[0]].solution_value + 1j*self.ImW[edge2[1],edge[0]].solution_value)
+    #                 print(edge,edge2,val+val2+val3)
 
     def diagnosis(self):
         print("Objective value = {0}".format(self.mdl.objective_value))
@@ -886,4 +879,20 @@ class piecewiseRelaxer():
             dicoZmbRe = {(row[aux],col[aux]):np.real(1j*self.ZM[idx_bus][row[aux],col[aux]]) for aux in range(len(row))}
             dicoZmbIm = {(row[aux],col[aux]):np.imag(1j*self.ZM[idx_bus][row[aux],col[aux]]) for aux in range(len(row))}
             assert(abs(sum([self.Qgen[idx_gen].solution_value for idx_gen in self.bus_to_gen[idx_bus]])-(self.Qload[idx_bus]+sum([self.ReW[i,j].solution_value*dicoZmbRe[i,j] for i,j in dicoZmbRe]) + sum([self.ImW[i,j].solution_value*dicoZmbIm[i,j] for i,j in dicoZmbIm])))<1E-6)
+    
+    
+    def iteration_log(self):
+        df = pd.DataFrame()
+        df['gap'] = (np.ones(len(self.bestLBlogs))*self.UB - np.array(self.bestLBlogs))/self.UB
+        df['LB'] = self.bestLBlogs
+        df['rank_ratio'] = self.maxratiologs
+        df['sdp_measure'] = self.sdpmeasurelogs
+        
+        
+        if self.config['lineconstraints']=='I':
+            df.to_csv('output_I/'+self.name+'_global_logs.csv')
+        elif (self.config['lineconstraints']=='S'):
+            df.to_csv('output_S/'+self.name+'_global_logs.csv')
+        else:
+            df.to_csv('output_no_lim/'+self.name+'_global_logs.csv')
             
