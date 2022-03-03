@@ -383,12 +383,10 @@ class piecewiseRelaxer():
             print("Best LB = {0}".format(self.bestLB))
         self.diagnosis()
         
-        
         if it==maxit:
             return "Max number of it"
         else:
             return "Time limit"
-    
     
     def lazy_sdpcuts_procedure(self):
         for idx_clique in range(len(self.cliques)):
