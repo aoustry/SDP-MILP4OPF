@@ -10,7 +10,6 @@ reltol = 1E-4
 lineconstraints = 'S'
 
 #Instances list
-        
 instances = [         'pglib_opf_case3_lmbd.m',
                       'pglib_opf_case5_pjm.m', 
                       'pglib_opf_case14_ieee.m',

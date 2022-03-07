@@ -778,22 +778,24 @@ class piecewiseRelaxer():
     
     def add_mip_start(self):
         sol = SolveSolution(self.mdl)
-        gen_index = [i for i in range(len(self.local_optimizer_results.Pg)) if not(i in self.inactive_generators)]
+        gen_index = [i for i in range(len(self.local_optimizer_results.Pgen)) if not(i in self.inactive_generators)]
         val = self.offset
         for i in range(self.gn):
-            sol.add_var_value(self.Pgen[i],self.local_optimizer_results.Pg[gen_index[i]])
-            val+=self.lincost[i]*self.local_optimizer_results.Pg[gen_index[i]]
+            sol.add_var_value(self.Pgen[i],self.local_optimizer_results.Pgen[gen_index[i]])
+            val+=self.lincost[i]*self.local_optimizer_results.Pgen[gen_index[i]]
             if self.quadcost[i]:
-                sol.add_var_value(self.Pgen2[i],self.local_optimizer_results.Pg[gen_index[i]]**2)
-                val+=self.quadcost[i]*self.local_optimizer_results.Pg[gen_index[i]]**2
+                sol.add_var_value(self.Pgen2[i],self.local_optimizer_results.Pgen[gen_index[i]]**2)
+                val+=self.quadcost[i]*self.local_optimizer_results.Pgen[gen_index[i]]**2
             else:
                 sol.add_var_value(self.Pgen2[i],0)
-            sol.add_var_value(self.Qgen[i],self.local_optimizer_results.Qg[gen_index[i]])
+            sol.add_var_value(self.Qgen[i],self.local_optimizer_results.Qgen[gen_index[i]])
         
         print("MIP start Value = {0}".format(val))
         for i in range(self.n):
             sol.add_var_value(self.L[i],self.local_optimizer_results.VM[i])
-            sol.add_var_value(self.theta[i],np.pi*(self.local_optimizer_results.VA[i]/180.0 - self.local_optimizer_results.VA[0]/180.0))
+            #sol.add_var_value(self.theta[i],np.pi*(self.local_optimizer_results.VA[i]/180.0 - self.local_optimizer_results.VA[0]/180.0))
+            sol.add_var_value(self.theta[i],self.local_optimizer_results.theta[i] - self.local_optimizer_results.theta[0])
+            
             sol.add_var_value(self.ReW[i,i],self.local_optimizer_results.VM[i]**2)
             sol.add_var_value(self.ImW[i,i],0)
         
@@ -805,7 +807,7 @@ class piecewiseRelaxer():
         
         for edge in self.edgesNoDiag:
             b,a = edge
-            diff = np.pi*(self.local_optimizer_results.VA[b]-self.local_optimizer_results.VA[a])/180.0
+            diff = (self.local_optimizer_results.theta[b]-self.local_optimizer_results.theta[a])
             for k in self.delta_indices[edge]:
                 boolean = (diff>=self.phimin[edge,k]) and (diff<self.phimax[edge,k])
                 sol.add_var_value(self.delta[edge,k],int(boolean))

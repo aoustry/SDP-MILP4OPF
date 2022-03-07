@@ -779,12 +779,6 @@ class BTSDPRelaxer():
                     rex = Expr.add(Expr.mul(np.real(self.Yff[line]),A[clique].index(local_index_bus_b,local_index_bus_b)),Expr.add(Expr.mul(np.real(self.Yft[line]),A[clique].index(local_index_bus_b,local_index_bus_a)),Expr.mul(np.imag(self.Yft[line]),B[clique].index(local_index_bus_b,local_index_bus_a))))
                     imx = Expr.add(Expr.mul(-np.imag(self.Yff[line]),A[clique].index(local_index_bus_b,local_index_bus_b)),Expr.add(Expr.mul(-np.imag(self.Yft[line]),A[clique].index(local_index_bus_b,local_index_bus_a)),Expr.mul(np.real(self.Yft[line]),B[clique].index(local_index_bus_b,local_index_bus_a))))
                     M.constraint(Expr.vstack(self.Imax[idx_line],rex,imx), Domain.inQCone(3))
-                    # for k in range(k_for_slimit):
-                    #     theta = -np.pi + 2*(k/k_for_slimit)*np.pi
-                    #     coefAbb = np.cos(theta)*np.real(self.Yff[line]) - np.sin(theta)*np.imag(self.Yff[line])
-                    #     coefAba = np.cos(theta)*np.real(self.Yft[line]) - np.sin(theta)*np.imag(self.Yft[line])
-                    #     coefBba = np.cos(theta)*np.imag(self.Yft[line]) + np.sin(theta)*np.real(self.Yft[line])
-                    #     M.constraint(Expr.add(Expr.add(Expr.mul(coefAbb,A[clique].index(local_index_bus_b,local_index_bus_b)),Expr.mul(coefAba,A[clique].index(local_index_bus_b,local_index_bus_a))),Expr.mul(coefBba,B[clique].index(local_index_bus_b,local_index_bus_a))),Domain.lessThan(self.Imax[idx_line]))
                     #Switching indices to have (a,b,h) \in L
                     aux = local_index_bus_b
                     local_index_bus_b = local_index_bus_a
@@ -792,13 +786,6 @@ class BTSDPRelaxer():
                     rex = Expr.add(Expr.mul(np.real(self.Ytt[line]),A[clique].index(local_index_bus_b,local_index_bus_b)),Expr.add(Expr.mul(np.real(self.Ytf[line]),A[clique].index(local_index_bus_b,local_index_bus_a)),Expr.mul(np.imag(self.Ytf[line]),B[clique].index(local_index_bus_b,local_index_bus_a))))
                     imx = Expr.add(Expr.mul(-np.imag(self.Ytt[line]),A[clique].index(local_index_bus_b,local_index_bus_b)),Expr.add(Expr.mul(-np.imag(self.Ytf[line]),A[clique].index(local_index_bus_b,local_index_bus_a)),Expr.mul(np.real(self.Ytf[line]),B[clique].index(local_index_bus_b,local_index_bus_a))))
                     M.constraint(Expr.vstack(self.Imax[idx_line],rex,imx), Domain.inQCone(3))
-                    
-                    # for k in range(k_for_slimit):
-                    #     theta = -np.pi + 2*(k/k_for_slimit)*np.pi
-                    #     coefAbb = np.cos(theta)*np.real(self.Ytt[line]) - np.sin(theta)*np.imag(self.Ytt[line])
-                    #     coefAba = np.cos(theta)*np.real(self.Ytf[line]) - np.sin(theta)*np.imag(self.Ytf[line])
-                    #     coefBba = np.cos(theta)*np.imag(self.Ytf[line]) + np.sin(theta)*np.real(self.Ytf[line])
-                    #     #M.constraint(Expr.add(Expr.add(Expr.mul(coefAbb,A[clique].index(local_index_bus_b,local_index_bus_b)),Expr.mul(coefAba,A[clique].index(local_index_bus_b,local_index_bus_a))),Expr.mul(coefBba,B[clique].index(local_index_bus_b,local_index_bus_a))),Domain.lessThan(self.Imax[idx_line]))
                     
             
             #Overlapping constraints for W
