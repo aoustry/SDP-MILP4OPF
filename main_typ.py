@@ -2,8 +2,8 @@ from master import global_algo
 import sys
 
 #Global algo parameters
-BTtimeLimit = 36000
-MILPtimeLimit = 5*3600
+BTtimeLimit = 10*3600
+MILPtimeLimit = 6*3600
 reltol = 1E-4
 
 
