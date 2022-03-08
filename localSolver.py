@@ -87,29 +87,29 @@ class localACOPFsolver():
         self.value,self.success = np.inf, 0
         self.build_model()
             
-    def __vmax_function(self,model, i):
-        return self.Vmax[i]
+    # def __vmax_function(self,model, i):
+    #     return self.Vmax[i]
     
-    def __vmin_function(self,model, i):
-        return self.Vmin[i]
+    # def __vmin_function(self,model, i):
+    #     return self.Vmin[i]
     
-    def __pmax_function(self,model, i):
-        return self.Pmax[i]
+    # def __pmax_function(self,model, i):
+    #     return self.Pmax[i]
     
-    def __pmin_function(self,model, i):
-        return self.Pmin[i]
+    # def __pmin_function(self,model, i):
+    #     return self.Pmin[i]
     
-    def __qmax_function(self,model, i):
-        return self.Qmax[i]
+    # def __qmax_function(self,model, i):
+    #     return self.Qmax[i]
     
-    def __qmin_function(self,model, i):
-        return self.Qmin[i]
+    # def __qmin_function(self,model, i):
+    #     return self.Qmin[i]
     
-    def __tmax_function(self,model, b,a):
-        return self.ThetaMaxByEdge[(b,a)]
+    # def __tmax_function(self,model, b,a):
+    #     return self.ThetaMaxByEdge[(b,a)]
     
-    def __tmin_function(self,model, b,a):
-        return self.ThetaMinByEdge[(b,a)]
+    # def __tmin_function(self,model, b,a):
+    #     return self.ThetaMinByEdge[(b,a)]
     
     def __feasible(self,pgen,qgen,V):
         tol, res = 1e-6, True
@@ -179,14 +179,26 @@ class localACOPFsolver():
         self.mdl.Pref = Param(self.mdl.generators,initialize=0,mutable=True)
         self.mdl.Vref = Param(self.mdl.bus,initialize=1,mutable=True)
         self.mdl.targetThetaByEdge = Param(self.SymEdgesNoDiag,initialize=0,mutable=True)
-        self.mdl.mutableVmax = Param(self.mdl.bus,initialize=self.__vmax_function,mutable=True)
-        self.mdl.mutableVmin = Param(self.mdl.bus,initialize=self.__vmin_function,mutable=True)
-        self.mdl.mutablePmax = Param(self.mdl.generators,initialize=self.__pmax_function,mutable=True)
-        self.mdl.mutablePmin = Param(self.mdl.generators,initialize=self.__pmin_function,mutable=True)
-        self.mdl.mutableQmax = Param(self.mdl.generators,initialize=self.__qmax_function,mutable=True)
-        self.mdl.mutableQmin = Param(self.mdl.generators,initialize=self.__qmin_function,mutable=True)
-        self.mdl.mutableThetaMaxByEdge = Param(self.SymEdgesNoDiag,initialize=self.__tmax_function,mutable=True)
-        self.mdl.mutableThetaMinByEdge = Param(self.SymEdgesNoDiag,initialize=self.__tmin_function,mutable=True)
+        self.mdl.mutableVmax = Param(self.mdl.bus,initialize=0,mutable=True)
+        self.mdl.mutableVmin = Param(self.mdl.bus,initialize=0,mutable=True)
+        self.mdl.mutablePmax = Param(self.mdl.generators,initialize=0,mutable=True)
+        self.mdl.mutablePmin = Param(self.mdl.generators,initialize=0,mutable=True)
+        self.mdl.mutableQmax = Param(self.mdl.generators,initialize=0,mutable=True)
+        self.mdl.mutableQmin = Param(self.mdl.generators,initialize=0,mutable=True)
+        self.mdl.mutableThetaMaxByEdge = Param(self.SymEdgesNoDiag,initialize=0,mutable=True)
+        self.mdl.mutableThetaMinByEdge = Param(self.SymEdgesNoDiag,initialize=0,mutable=True)
+        # self.mdl.mutableVmax = Param(self.mdl.bus,initialize=self.__vmax_function,mutable=True)
+        # self.mdl.mutableVmin = Param(self.mdl.bus,initialize=self.__vmin_function,mutable=True)
+        # self.mdl.mutablePmax = Param(self.mdl.generators,initialize=self.__pmax_function,mutable=True)
+        # self.mdl.mutablePmin = Param(self.mdl.generators,initialize=self.__pmin_function,mutable=True)
+        # self.mdl.mutableQmax = Param(self.mdl.generators,initialize=self.__qmax_function,mutable=True)
+        # self.mdl.mutableQmin = Param(self.mdl.generators,initialize=self.__qmin_function,mutable=True)
+        # self.mdl.mutableThetaMaxByEdge = Param(self.SymEdgesNoDiag,initialize=self.__tmax_function,mutable=True)
+        # self.mdl.mutableThetaMinByEdge = Param(self.SymEdgesNoDiag,initialize=self.__tmin_function,mutable=True)
+        self.update_active_power_bounds(self.Pmin, self.Pmax) 
+        self.update_reactive_power_bounds(self.Qmin, self.Qmax)    
+        self.update_magnitude_bounds(self.Vmin, self.Vmax)
+        self.update_diff_angle_bounds(self.ThetaMinByEdge,self.ThetaMaxByEdge)
         ######################################### Variables ######################################
         #Gen variables
         self.mdl.Pgen = Var(range(self.gn))
