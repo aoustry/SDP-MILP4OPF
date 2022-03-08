@@ -201,7 +201,7 @@ class EnhancedSdpRelaxer():
                 self.blocked_gamma_gen_plus.append(gen[0])
 
                     
-    def computeDuals(self):
+    def computeDuals(self,Vmin=None,Vmax=None,ThetaMinByEdge=None,ThetaMaxByEdge=None):
         """
         Method to solve the real formulation of the rank relaxation
 
@@ -211,6 +211,24 @@ class EnhancedSdpRelaxer():
 
         """
         scale = 0.001
+        
+        if type(Vmin)==type(None):
+            assert(type(Vmax)==type(None))
+            assert(type(ThetaMinByEdge)==type(None))
+            assert(type(ThetaMaxByEdge)==type(None))
+            Vmin,Vmax,ThetaMinByEdge,ThetaMaxByEdge = self.Vmin,self.Vmax,self.ThetaMinByEdge,self.ThetaMaxByEdge
+        else:
+            for i in range(self.n):
+                assert(self.Vmin[i]<=Vmin[i])
+                assert(Vmin[i]<=Vmax[i])
+                assert(Vmax[i]<=self.Vmax[i])
+            for b,a in self.ThetaMinByEdge:
+                assert(self.ThetaMinByEdge[(b,a)]<=ThetaMinByEdge[(b,a)])
+                assert(ThetaMinByEdge[(b,a)]<=ThetaMaxByEdge[(b,a)])
+                assert(ThetaMaxByEdge[(b,a)]<=self.ThetaMaxByEdge[(b,a)])
+            assert(type(ThetaMinByEdge)!=type(None))
+            assert(type(ThetaMaxByEdge)!=type(None))
+        
         with Model("OPF-rank-relaxation") as M:
         
             #Upper level var
@@ -242,8 +260,8 @@ class EnhancedSdpRelaxer():
                 A[idx_clique] = M.variable("A"+str(idx_clique), [nc,nc], Domain.unbounded())
                 B[idx_clique] = M.variable("B"+str(idx_clique), [nc,nc], Domain.unbounded())
                 # # #Voltage bounds
-                M.constraint(A[idx_clique].diag(),Domain.greaterThan(np.array([self.Vmin[idx]**2 for idx in clique])))
-                M.constraint(A[idx_clique].diag(),Domain.lessThan(np.array([self.Vmax[idx]**2 for idx in clique])))
+                M.constraint(A[idx_clique].diag(),Domain.greaterThan(np.array([Vmin[idx]**2 for idx in clique])))
+                M.constraint(A[idx_clique].diag(),Domain.lessThan(np.array([Vmax[idx]**2 for idx in clique])))
             
                 #Link between isometry matrix X and matrices A and B
                 M.constraint(Expr.sub(Expr.mul(1/np.sqrt(2),A[idx_clique]),X[idx_clique].slice([0,0], [nc,nc])), Domain.equalsTo(0,nc,nc))
@@ -257,22 +275,22 @@ class EnhancedSdpRelaxer():
                 for i in range(nc):
                     b = clique[i]
                     M.constraint(Expr.sub(A[idx_clique].index(i,i),R[idx_clique].index(1+i,1+i)),Domain.equalsTo(0))
-                    M.constraint(R[idx_clique].index(0,1+i),Domain.greaterThan(self.Vmin[b]))
-                    M.constraint(R[idx_clique].index(0,1+i),Domain.lessThan(self.Vmax[b]))
-                    if self.Vmax[b] > self.Vmin[b]:
-                        slope = ((self.Vmax[b] - self.Vmin[b])/(self.Vmax[b]**2 - self.Vmin[b]**2))
-                        M.constraint(Expr.sub(R[idx_clique].index(0,1+i),Expr.mul(slope,A[idx_clique].index(i,i))), Domain.greaterThan(self.Vmin[b] - (self.Vmin[b]**2)*slope))
+                    M.constraint(R[idx_clique].index(0,1+i),Domain.greaterThan(Vmin[b]))
+                    M.constraint(R[idx_clique].index(0,1+i),Domain.lessThan(Vmax[b]))
+                    if Vmax[b] > Vmin[b]:
+                        slope = ((Vmax[b] - Vmin[b])/(Vmax[b]**2 - Vmin[b]**2))
+                        M.constraint(Expr.sub(R[idx_clique].index(0,1+i),Expr.mul(slope,A[idx_clique].index(i,i))), Domain.greaterThan(Vmin[b] - (Vmin[b]**2)*slope))
                     else:
-                        assert(self.Vmax[b] == self.Vmin[b])
-                        M.constraint(A[idx_clique].index(i,i),Domain.equalsTo(self.Vmin[b]**2))
-                        M.constraint(R[idx_clique].index(0,i+1),Domain.equalsTo(self.Vmin[b]))
+                        assert(Vmax[b] == Vmin[b])
+                        M.constraint(A[idx_clique].index(i,i),Domain.equalsTo(Vmin[b]**2))
+                        M.constraint(R[idx_clique].index(0,i+1),Domain.equalsTo(Vmin[b]))
                     for j in range(nc):
                         
                         if i<j and not((clique[i],clique[j]) in already_covered):
                             assert(clique[i]<clique[j])
                             b,a = clique[i],clique[j]
                             already_covered.add((clique[i],clique[j]))
-                            phimin,phimax = self.ThetaMinByEdge[(clique[i],clique[j])],self.ThetaMaxByEdge[(clique[i],clique[j])]
+                            phimin,phimax = ThetaMinByEdge[(clique[i],clique[j])],ThetaMaxByEdge[(clique[i],clique[j])]
                             if phimax-phimin<=np.pi:
                                 M.constraint(Expr.add(Expr.mul(-np.sin(phimin),A[idx_clique].index(i,j)),Expr.mul(np.cos(phimin),B[idx_clique].index(i,j))),Domain.greaterThan(0))
                                 M.constraint(Expr.add(Expr.mul(-np.sin(phimax),A[idx_clique].index(i,j)),Expr.mul(np.cos(phimax),B[idx_clique].index(i,j))),Domain.lessThan(0))
@@ -280,10 +298,10 @@ class EnhancedSdpRelaxer():
                                 mean =  0.5*(phimax + phimin)
                                 M.constraint(Expr.sub(Expr.add(Expr.mul(np.cos(mean),A[idx_clique].index(i,j)),Expr.mul(np.sin(mean),B[idx_clique].index(i,j))), Expr.mul(np.cos(halfdiff),R[idx_clique].index(1+i,1+j))),Domain.greaterThan(0))
             
-                            M.constraint(Expr.sub(R[idx_clique].index(1+i,1+j),Expr.add(Expr.mul(self.Vmin[b], R[idx_clique].index(0,1+j)), Expr.mul( self.Vmin[a], R[idx_clique].index(0,1+i)))),Domain.greaterThan(- self.Vmin[b]*self.Vmin[a]))
-                            M.constraint(Expr.sub(R[idx_clique].index(1+i,1+j),Expr.add(Expr.mul(self.Vmax[b], R[idx_clique].index(0,1+j)), Expr.mul( self.Vmax[a], R[idx_clique].index(0,1+i)))),Domain.greaterThan(- self.Vmax[b]*self.Vmax[a]))
-                            M.constraint(Expr.sub(R[idx_clique].index(1+i,1+j),Expr.add(Expr.mul(self.Vmax[b], R[idx_clique].index(0,1+j)), Expr.mul( self.Vmin[a], R[idx_clique].index(0,1+i)))),Domain.lessThan(- self.Vmax[b]*self.Vmin[a]))
-                            M.constraint(Expr.sub(R[idx_clique].index(1+i,1+j),Expr.add(Expr.mul(self.Vmin[b], R[idx_clique].index(0,1+j)), Expr.mul( self.Vmax[a], R[idx_clique].index(0,1+i)))),Domain.lessThan(- self.Vmin[b]*self.Vmax[a]))
+                            M.constraint(Expr.sub(R[idx_clique].index(1+i,1+j),Expr.add(Expr.mul(Vmin[b], R[idx_clique].index(0,1+j)), Expr.mul( Vmin[a], R[idx_clique].index(0,1+i)))),Domain.greaterThan(- Vmin[b]*Vmin[a]))
+                            M.constraint(Expr.sub(R[idx_clique].index(1+i,1+j),Expr.add(Expr.mul(Vmax[b], R[idx_clique].index(0,1+j)), Expr.mul( Vmax[a], R[idx_clique].index(0,1+i)))),Domain.greaterThan(- Vmax[b]*Vmax[a]))
+                            M.constraint(Expr.sub(R[idx_clique].index(1+i,1+j),Expr.add(Expr.mul(Vmax[b], R[idx_clique].index(0,1+j)), Expr.mul( Vmin[a], R[idx_clique].index(0,1+i)))),Domain.lessThan(- Vmax[b]*Vmin[a]))
+                            M.constraint(Expr.sub(R[idx_clique].index(1+i,1+j),Expr.add(Expr.mul(Vmin[b], R[idx_clique].index(0,1+j)), Expr.mul( Vmax[a], R[idx_clique].index(0,1+i)))),Domain.lessThan(- Vmin[b]*Vmax[a]))
                             
                             #Constraint |W_ba| \leq R_{ba}
                             M.constraint(Expr.vstack(R[idx_clique].index(1+i,1+j),A[idx_clique].index(i,j),B[idx_clique].index(i,j)), Domain.inQCone(3))
@@ -396,7 +414,24 @@ class EnhancedSdpRelaxer():
                 
                 res.append(bigXdual[:nc,:nc] +1j * (bigXdual[nc:2*nc,:nc]))
                 res2.append((R[idx_clique].dual()).reshape((1+nc,1+nc)))
-            return value,res, res2
+            PgenVal = Pgen.level()
+            LVal = {}
+            ReWVal,ImWVal = {},{}
+            for idx_clique in range(self.cliques_nbr):
+                nc = self.ncliques[idx_clique]
+                auxA,auxB = (A[idx_clique].level()).reshape(nc,nc), (B[idx_clique].level()).reshape(nc,nc)
+                auxL = (R[idx_clique].level()).reshape(nc+1,nc+1)[0,1:]
+                assert(len(auxL)==nc)
+                for i in range(nc):
+                    b = self.cliques[idx_clique][i]
+                    LVal[b] = auxL[i]
+                    for j in range(nc):
+                        b,a = self.cliques[idx_clique][i],self.cliques[idx_clique][j]
+                        ReWVal[(b,a)] = auxA[i,j]
+                        ImWVal[(b,a)] = auxB[i,j]
+                        
+                        
+            return value,res, res2, PgenVal, LVal, ReWVal,ImWVal
         
 
  

@@ -15,7 +15,6 @@ import EnhancedSdpRelaxer
 import BTSDPRelaxer
 from progress.bar import Bar
 
-
 #Paths
 folder_dict = {'S':'output_S','I':'output_I',False:'output_no_lim'}
 mips_folder_dict = {'S':'data/mips_outputs_S','I':'data/mips_outputs_lc',False:'data/mips_output_no_lim'}
@@ -66,15 +65,12 @@ def load_instance(name_instance,lineconstraints,case_datafolder):
 
 def compute_sdp_cuts(I):
     B2 = EnhancedSdpRelaxer.EnhancedSdpRelaxer(I)
-    value,X1,X2 = B2.computeDuals()
-    return value,X1,X2
+    value,X1,X2, PgenVal, LVal, ReWVal,ImWVal = B2.computeDuals()
+    return value,X1,X2, PgenVal, LVal, ReWVal,ImWVal
 
-def bound_tightening(I,localOptParser,BTtimeLimit):
+def bound_tightening(I,localOptParser,BTtimeLimit,reltol):
     assert(localOptParser.success ==1)
-    if I.n<=100:
-        niter=3
-    else:
-        niter=1
+    niter = 4
     deadline = BTtimeLimit + time.time()
     print('FBBT/OBBT started')
     for counter in range(niter):
@@ -102,6 +98,9 @@ def bound_tightening(I,localOptParser,BTtimeLimit):
                 I.ThetaMaxByEdge[(i,j)] = B2.ThetaMaxByEdge[(i,j)] = min(I.ThetaMaxByEdge[(i,j)],np.arcsin(max(upper_bound/(I.Vmin[i]*I.Vmin[j]),upper_bound/(I.Vmax[i]*I.Vmax[j]))))
             bar.next()
         bar.finish()
+        valSDP,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
+        if abs(localOptParser.value - valSDP)/localOptParser.value < reltol:
+            return I
         bar = Bar('Magnitude tightening', max=I.n)
         for i in range(I.n):
             if deadline<time.time():
@@ -127,7 +126,10 @@ def bound_tightening(I,localOptParser,BTtimeLimit):
         for i,j in I.SymEdgesNoDiag:
             I.ThetaMinByEdge[(i,j)] = max(I.ThetaMinByEdge[(i,j)], -I.ThetaMaxByEdge[(j,i)])
             I.ThetaMaxByEdge[(i,j)] = min(I.ThetaMaxByEdge[(i,j)], -I.ThetaMinByEdge[(j,i)])
-    
+            
+        valSDP,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
+        if abs(localOptParser.value - valSDP)/localOptParser.value < reltol:
+            return I
     print('FBBT/OBBT ended')
     return I
 
@@ -141,6 +143,34 @@ def basicsdp_relaxation_value(name_instance,I,ub):
         f.close()
     return val
 
+
+# def test_algo(name_instance,lineconstraints,case_datafolder):
+#     maxit = 1e5
+   
+#     print('############################################')
+#     print("Start loading instance " +name_instance)
+#     t0 = time.time()
+#     I = load_instance(name_instance,lineconstraints,case_datafolder)
+#     lineconstraints = I.config['lineconstraints']
+#     localOptParser = localACOPFsolver(I)
+#     localOptParser.solve()
+#     valSDP,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
+#     thetaValref= {(index_b,index_a) : np.angle(ReWVal[(index_b,index_a)]+1j*ImWVal[(index_b,index_a)]) for (index_b,index_a) in I.SymEdgesNoDiag}
+#     vref = [np.sqrt(ReWVal[(b,b)]) for b in range(I.n)]
+#     # Pmin = np.maximum(0.9*np.array(PgenVal),I.Pmin)
+#     # Pmax = np.minimum(1.1*np.array(PgenVal),I.Pmax)
+#     # Vmin = np.maximum(np.array([0.9*np.sqrt(ReWVal[(b,b)]) for b in range(I.n)]),I.Vmin)
+#     # Vmax = np.minimum(np.array([1.1*np.sqrt(ReWVal[(b,b)]) for b in range(I.n)]),I.Vmax)
+#     # localOptParser.update_active_power_bounds(Pmin, Pmax)
+#     # localOptParser.update_magnitude_bounds(Vmin, Vmax)
+#     localOptParser.update_pen(100)
+#     localOptParser.update_pref(PgenVal)
+#     localOptParser.update_thetaref(thetaValref)
+#     localOptParser.update_vref(vref)
+#     localOptParser.solve()
+#     print('best:')
+#     print(localOptParser.value)
+
 def global_algo(name_instance,lineconstraints,case_datafolder,BTtimeLimit,MILPtimeLimit,reltol):
     maxit = 1e5
     ubcuts = True
@@ -152,7 +182,7 @@ def global_algo(name_instance,lineconstraints,case_datafolder,BTtimeLimit,MILPti
     lineconstraints = I.config['lineconstraints']
     localOptParser = localACOPFsolver(I)
     localOptParser.solve()
-    valSDP,X1,X2 = compute_sdp_cuts(I)
+    valSDP,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
     total_it_number = 0
     if abs(localOptParser.value - valSDP)/localOptParser.value < reltol:
         value = valSDP
@@ -162,14 +192,15 @@ def global_algo(name_instance,lineconstraints,case_datafolder,BTtimeLimit,MILPti
         bestGap = abs(localOptParser.value - valSDP)/localOptParser.value
         status = 'Strengthened SDP relaxation has no gap '
     else:
-        I = bound_tightening(I,localOptParser,BTtimeLimit)
-        value,X1,X2 = compute_sdp_cuts(I)
+        I = bound_tightening(I,localOptParser,BTtimeLimit,reltol)
+        value,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
         timeBTSDP = time.time() - t0
         t1= time.time()
         R=piecewiseRelaxer.piecewiseRelaxer(I,{'reinforcement':True},localOptParser)
         R.build_model()
         R.add_sdp_duals_W(X1)
         R.add_sdp_duals_R(X2)
+        R.add_quad_cuts(PgenVal, LVal, ReWVal,ImWVal)
         status = R.solve(MILPtimeLimit,maxit,reltol,ubcuts,with_lazy_random_sdp_cuts)
         timeMILP = time.time()-t1
         bestLB = R.bestLB

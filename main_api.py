@@ -1,4 +1,5 @@
-from master import *
+from master import global_algo
+import sys
 
 #Global algo parameters
 BTtimeLimit = 36000
@@ -11,12 +12,12 @@ lineconstraints = 'S'
 
 #Instances list
 instances = [         'pglib_opf_case3_lmbd.m',
-                      'pglib_opf_case5_pjm.m', 
-                      'pglib_opf_case14_ieee.m',
-                        'pglib_opf_case24_ieee_rts.m',
-                      'pglib_opf_case30_as.m',
-                'pglib_opf_case30_ieee.m',
-                  'pglib_opf_case39_epri.m',
+                        'pglib_opf_case5_pjm.m', 
+                        'pglib_opf_case14_ieee.m',
+                          'pglib_opf_case24_ieee_rts.m',
+                        'pglib_opf_case30_as.m',
+                  'pglib_opf_case30_ieee.m',
+                    'pglib_opf_case39_epri.m',
                   'pglib_opf_case57_ieee.m',
                   'pglib_opf_case73_ieee_rts.m',
         'pglib_opf_case89_pegase.m',    
@@ -30,4 +31,9 @@ instances = [         'pglib_opf_case3_lmbd.m',
 
 
 for name_instance in instances:
-    global_algo(name_instance.replace('.m','')+"__api",lineconstraints,'data/pglib-opf/api',BTtimeLimit,MILPtimeLimit,reltol)
+    try:
+        global_algo(name_instance.replace('.m','')+"__api",lineconstraints,'data/pglib-opf/api',BTtimeLimit,MILPtimeLimit,reltol)
+    
+    except:
+        print("Unexpected error:", sys.exc_info()[0])
+    

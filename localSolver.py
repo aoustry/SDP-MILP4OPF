@@ -65,7 +65,7 @@ class localACOPFsolver():
         self.clinelist, self.clinelistinv = ACOPF.clinelist, ACOPF.clinelistinv
         self.Imax = ACOPF.Imax
         
-        self.SymEdgesNoDiag  = ACOPF.SymEdgesNoDiag
+        self.edges, self.SymEdgesNoDiag  = ACOPF.edges,ACOPF.SymEdgesNoDiag
         self.ThetaMinByEdge, self.ThetaMaxByEdge = ACOPF.ThetaMinByEdge, ACOPF.ThetaMaxByEdge
         
         #Construct cliques
@@ -175,6 +175,10 @@ class localACOPFsolver():
         self.mdl =  ConcreteModel()
         self.mdl.bus = RangeSet(0,self.n-1)
         self.mdl.generators = RangeSet(0,self.gn-1)
+        self.mdl.penal = Param(initialize=0,mutable=True)
+        self.mdl.Pref = Param(self.mdl.generators,initialize=0,mutable=True)
+        self.mdl.Vref = Param(self.mdl.bus,initialize=1,mutable=True)
+        self.mdl.targetThetaByEdge = Param(self.SymEdgesNoDiag,initialize=0,mutable=True)
         self.mdl.mutableVmax = Param(self.mdl.bus,initialize=self.__vmax_function,mutable=True)
         self.mdl.mutableVmin = Param(self.mdl.bus,initialize=self.__vmin_function,mutable=True)
         self.mdl.mutablePmax = Param(self.mdl.generators,initialize=self.__pmax_function,mutable=True)
@@ -193,7 +197,8 @@ class localACOPFsolver():
         #Bus and edges variables
         self.mdl.VM = Var(range(self.n),initialize= 1)
         ######################################### Objective function ################################################
-        self.mdl.objective = Objective(expr = sum(self.offset+self.mdl.Pgen[i] * self.lincost[i]+(self.mdl.Pgen[i]**2) * self.quadcost[i] for i in range(self.gn)), sense=minimize)
+        penal_expr = sum( (self.mdl.VM[i]-self.mdl.Vref[i])**2 for i in range(self.n))+sum( (self.mdl.Pgen[i]-self.mdl.Pref[i])**2 for i in range(self.gn)) + sum( (self.mdl.theta[b] - self.mdl.theta[a] - self.mdl.targetThetaByEdge[(b,a)])**2 for (b,a) in self.edges)
+        self.mdl.objective = Objective(expr = self.offset+sum(self.mdl.Pgen[i] * self.lincost[i]+(self.mdl.Pgen[i]**2) * self.quadcost[i] for i in range(self.gn)) + self.mdl.penal * penal_expr, sense=minimize)
         ######################################### Linear constraints defining F ######################################
         self.mdl.bounds = ConstraintList()
         for i in range(self.gn):
@@ -259,6 +264,21 @@ class localACOPFsolver():
             self.mdl.angle_const.add(self.mdl.theta[index_bus_b] - self.mdl.theta[index_bus_a] >=  self.mdl.mutableThetaMinByEdge[index_bus_b,index_bus_a])
             self.mdl.angle_const.add(self.mdl.theta[index_bus_b] - self.mdl.theta[index_bus_a] <=  self.mdl.mutableThetaMaxByEdge[index_bus_b,index_bus_a])
 
+    def update_pen(self,pen):
+        self.mdl.penal = pen
+
+    def update_pref(self, pref):    
+        for i in range(self.gn):
+            self.mdl.Pref[i] = pref[i]
+        
+    def update_vref(self, vref):    
+        for i in range(self.n):
+            self.mdl.Vref[i] = vref[i]
+    
+    def update_thetaref(self, thetaref):    
+        for index_bus_b,index_bus_a in self.SymEdgesNoDiag:
+            self.mdl.targetThetaByEdge[(index_bus_b,index_bus_a)] = thetaref[(index_bus_b,index_bus_a)]
+
     def update_active_power_bounds(self,Pmin, Pmax):
         for i in range(self.gn):
             self.mdl.mutablePmin[i],self.mdl.mutablePmax[i] = Pmin[i], Pmax[i]
@@ -290,7 +310,7 @@ class localACOPFsolver():
         cost = self.offset
         for i in range(self.gn):
             cost+=pgen[i]*self.lincost[i] + (pgen[i]**2)*self.quadcost[i]
-        print(cost)
+        print(self.name,cost)
         
         if self.__feasible(pgen,qgen, V) and cost<self.value:
             self.success = 1
@@ -301,9 +321,3 @@ class localACOPFsolver():
         
         return pgen,qgen, V
     
-I = linstance('pglib_opf_case3_lmbd')
-L = localACOPFsolver(I)
-pgen,qgen,V= L.solve()
-# # print(L.mdl.objective())
-# # L.update_magnitude_bounds(I.Vmin, I.Vmax)
-# # L.solve()

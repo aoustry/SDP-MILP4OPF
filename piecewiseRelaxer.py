@@ -4,7 +4,7 @@ Created on Mon Nov  8 15:56:53 2021
 
 @author: aoust
 """
-
+import EnhancedSdpRelaxer
 from numpy import linalg as LA
 from docplex.mp.advmodel import AdvModel
 from docplex.mp.solution import SolveSolution
@@ -33,6 +33,7 @@ class piecewiseRelaxer():
         self.name = ACOPF.name
         self.config = config
         self.local_optimizer_results = local_optimizer_results
+        self.sdp_relaxer = EnhancedSdpRelaxer.EnhancedSdpRelaxer(ACOPF)
         
         #Sizes
         self.baseMVA = ACOPF.baseMVA
@@ -189,7 +190,8 @@ class piecewiseRelaxer():
             if self.quadcost[i]:
                 for k in range(kdiscret+1):
                     xbar = self.Pmin[i] + (k/kdiscret) * (self.Pmax[i]-self.Pmin[i])
-                    self.mdl.add_constraint(2*xbar*(self.Pgen[i]-xbar)+xbar**2<=self.Pgen2[i])
+                    self.add_obj_cut(i,xbar)
+                    
             else:
                 self.mdl.add_constraint(self.Pgen2[i]==0)
         self.objective = self.offset+self.mdl.scal_prod(self.Pgen,self.lincost)+self.mdl.scal_prod(self.Pgen2,self.quadcost) 
@@ -231,20 +233,22 @@ class piecewiseRelaxer():
                 index_bus_b,index_bus_a = self.buslistinv[b],self.buslistinv[a]
                 for k in range(k_for_slimit):
                     theta = -np.pi + 2*(k/k_for_slimit)*np.pi
-                    coefRWbb = np.cos(theta)*np.real(self.Yff[line]) - np.sin(theta)*np.imag(self.Yff[line])
-                    coefRWba = np.cos(theta)*np.real(self.Yft[line]) - np.sin(theta)*np.imag(self.Yft[line])
-                    coefIWba = np.cos(theta)*np.imag(self.Yft[line]) + np.sin(theta)*np.real(self.Yft[line])
-                    self.mdl.add_constraint(coefRWbb*self.ReW[index_bus_b,index_bus_b]+coefRWba*self.ReW[index_bus_b,index_bus_a]+coefIWba*self.ImW[index_bus_b,index_bus_a]<=self.Imax[idx_line])
+                    self.add_SlimitFrom_cut(index_bus_b,index_bus_a,idx_line,theta)
+                    # coefRWbb = np.cos(theta)*np.real(self.Yff[line]) - np.sin(theta)*np.imag(self.Yff[line])
+                    # coefRWba = np.cos(theta)*np.real(self.Yft[line]) - np.sin(theta)*np.imag(self.Yft[line])
+                    # coefIWba = np.cos(theta)*np.imag(self.Yft[line]) + np.sin(theta)*np.real(self.Yft[line])
+                    # self.mdl.add_constraint(coefRWbb*self.ReW[index_bus_b,index_bus_b]+coefRWba*self.ReW[index_bus_b,index_bus_a]+coefIWba*self.ImW[index_bus_b,index_bus_a]<=self.Imax[idx_line])
                 #Switching indices to have (a,b,h) \in L
                 aux = index_bus_b
                 index_bus_b = index_bus_a
                 index_bus_a = aux
                 for k in range(k_for_slimit):
                     theta = -np.pi + 2*(k/k_for_slimit)*np.pi
-                    coefRWbb = np.cos(theta)*np.real(self.Ytt[line]) - np.sin(theta)*np.imag(self.Ytt[line])
-                    coefRWba = np.cos(theta)*np.real(self.Ytf[line]) - np.sin(theta)*np.imag(self.Ytf[line])
-                    coefIWba = np.cos(theta)*np.imag(self.Ytf[line]) + np.sin(theta)*np.real(self.Ytf[line])
-                    self.mdl.add_constraint(coefRWbb*self.ReW[index_bus_b,index_bus_b]+coefRWba*self.ReW[index_bus_b,index_bus_a]+coefIWba*self.ImW[index_bus_b,index_bus_a]<=self.Imax[idx_line])
+                    self.add_SlimitTo_cut(index_bus_b,index_bus_a,idx_line,theta)
+                    # coefRWbb = np.cos(theta)*np.real(self.Ytt[line]) - np.sin(theta)*np.imag(self.Ytt[line])
+                    # coefRWba = np.cos(theta)*np.real(self.Ytf[line]) - np.sin(theta)*np.imag(self.Ytf[line])
+                    # coefIWba = np.cos(theta)*np.imag(self.Ytf[line]) + np.sin(theta)*np.real(self.Ytf[line])
+                    # self.mdl.add_constraint(coefRWbb*self.ReW[index_bus_b,index_bus_b]+coefRWba*self.ReW[index_bus_b,index_bus_a]+coefIWba*self.ImW[index_bus_b,index_bus_a]<=self.Imax[idx_line])
         
         else:
             assert(self.config['lineconstraints']==False)
@@ -254,7 +258,8 @@ class piecewiseRelaxer():
             # self.mdl.add_constraint(self.L[b]**2<=self.ReW[b,b])
             for k in range(kdiscret+1):
                  xbar = self.Vmin[b] + (k/kdiscret) * (self.Vmax[b]-self.Vmin[b])
-                 self.mdl.add_constraint(2*xbar*(self.L[b]-xbar)+xbar**2<=self.ReW[b,b])
+                 self.add_quadLcut(b,xbar)
+                 
         self.mdl.add_constraints([self.Vmin[b] <=self.L[b] for b in range(self.n)])
         self.mdl.add_constraints([self.Vmax[b] >=self.L[b] for b in range(self.n)])
         
@@ -288,7 +293,8 @@ class piecewiseRelaxer():
         for b,a in self.edgesNoDiag:
             for k in range(kdiscret2+1):
                 theta = self.ThetaMinByEdge[b,a] + (k/kdiscret2)*(self.ThetaMaxByEdge[b,a]-self.ThetaMinByEdge[b,a])
-                self.mdl.add_constraint(self.ReW[b,a]*np.cos(theta) + self.ImW[b,a]*np.sin(theta)<=self.R[b,a])
+                self.add_circle_cut(b,a,theta)
+                #self.mdl.add_constraint(self.ReW[b,a]*np.cos(theta) + self.ImW[b,a]*np.sin(theta)<=self.R[b,a])
         
     
     def solve(self,timelimit,maxit,rel_tol, ubcuts,with_lazy_random_sdp_cuts):
@@ -300,9 +306,7 @@ class piecewiseRelaxer():
       
         self.total_it_number = it =  0
         self.UB = self.local_optimizer_results.value
-        self.bestLBlogs = []
-        self.maxratiologs  = []
-        self.sdpmeasurelogs  = []
+        self.bestLBlogs,self.bestUBlogs, self.maxratiologs, self.sdpmeasurelogs = [], [],[],[]
         assert(self.local_optimizer_results.success==1)
         self.accuracyNC = 1E-7
         self.accuracyC = 1E-7
@@ -329,13 +333,20 @@ class piecewiseRelaxer():
                 new_bound = self.mdl.solve_details.best_bound if self.binaries else self.mdl.objective_value
                 self.bestLB = max(self.bestLB,new_bound)
                 self.bestLBlogs.append(self.bestLB)
-                
+                self.bestUBlogs.append(self.local_optimizer_results.value)
                 print("Best bound = {0}".format(self.bestLB))
                 print("Objective value = {0}".format(self.mdl.objective_value))
                 print("Relative gap = {0}".format((self.UB-self.bestLB)/self.UB))
                 
                 rank_one, sdp, quad_obj,bool_lineconstraints = self.cp_procedure()
                 
+               
+                if local_it%8==7:
+                    Vmin,Vmax,ThetaMinByEdge,ThetaMaxByEdge = self.current_subinterval_bounds()
+                    value,X1,X2, PgenVal, LVal, ReWVal,ImWVal = self.sdp_relaxer.computeDuals(Vmin,Vmax,ThetaMinByEdge,ThetaMaxByEdge)
+                    self.add_sdp_duals_W(X1)
+                    self.add_sdp_duals_R(X2)
+         
                 print(rank_one, sdp, quad_obj,bool_lineconstraints)
                 
                 self.iteration_log()
@@ -380,6 +391,8 @@ class piecewiseRelaxer():
                     auxbool = self.add_detail_R(b)
                     new_break_points = new_break_points or auxbool
             self.add_mip_start()
+            self.local_heuristic()
+            
             print("Best LB = {0}".format(self.bestLB))
         self.diagnosis()
         
@@ -464,7 +477,8 @@ class piecewiseRelaxer():
                 obj_error = max(obj_error,self.Pgen[i].solution_value**2-self.Pgen2[i].solution_value)
                 if self.Pgen[i].solution_value**2>self.Pgen2[i].solution_value+self.accuracyC:
                     xbar = self.Pgen[i].solution_value
-                    self.mdl.add_constraint(2*xbar*(self.Pgen[i]-xbar)+xbar**2<=self.Pgen2[i])
+                    self.add_obj_cut(i,xbar)
+                    #self.mdl.add_constraint(2*xbar*(self.Pgen[i]-xbar)+xbar**2<=self.Pgen2[i])
         #################### Cutting planes for S - flow limits ################################
         bool_lineconstraints = True
         flow_error = 0
@@ -477,10 +491,11 @@ class piecewiseRelaxer():
                 if abs(X)>=self.Imax[idx_line]+self.accuracyC:
                     bool_lineconstraints = False
                     theta = np.angle(X)
-                    coefRWbb = np.cos(theta)*np.real(self.Yff[line]) - np.sin(theta)*np.imag(self.Yff[line])
-                    coefRWba = np.cos(theta)*np.real(self.Yft[line]) - np.sin(theta)*np.imag(self.Yft[line])
-                    coefIWba = np.cos(theta)*np.imag(self.Yft[line]) + np.sin(theta)*np.real(self.Yft[line])
-                    self.mdl.add_constraint(coefRWbb*self.ReW[index_bus_b,index_bus_b]+coefRWba*self.ReW[index_bus_b,index_bus_a]+coefIWba*self.ImW[index_bus_b,index_bus_a]<=self.Imax[idx_line])
+                    self.add_SlimitFrom_cut(index_bus_b,index_bus_a,idx_line,theta)
+                    # coefRWbb = np.cos(theta)*np.real(self.Yff[line]) - np.sin(theta)*np.imag(self.Yff[line])
+                    # coefRWba = np.cos(theta)*np.real(self.Yft[line]) - np.sin(theta)*np.imag(self.Yft[line])
+                    # coefIWba = np.cos(theta)*np.imag(self.Yft[line]) + np.sin(theta)*np.real(self.Yft[line])
+                    # self.mdl.add_constraint(coefRWbb*self.ReW[index_bus_b,index_bus_b]+coefRWba*self.ReW[index_bus_b,index_bus_a]+coefIWba*self.ImW[index_bus_b,index_bus_a]<=self.Imax[idx_line])
                 #Switching indices to have (a,b,h) \in L
                 aux = index_bus_b
                 index_bus_b = index_bus_a
@@ -490,10 +505,11 @@ class piecewiseRelaxer():
                 if abs(X)>=self.Imax[idx_line]+self.accuracyC:
                     bool_lineconstraints = False
                     theta = np.angle(X)
-                    coefRWbb = np.cos(theta)*np.real(self.Ytt[line]) - np.sin(theta)*np.imag(self.Ytt[line])
-                    coefRWba = np.cos(theta)*np.real(self.Ytf[line]) - np.sin(theta)*np.imag(self.Ytf[line])
-                    coefIWba = np.cos(theta)*np.imag(self.Ytf[line]) + np.sin(theta)*np.real(self.Ytf[line])
-                    self.mdl.add_constraint(coefRWbb*self.ReW[index_bus_b,index_bus_b]+coefRWba*self.ReW[index_bus_b,index_bus_a]+coefIWba*self.ImW[index_bus_b,index_bus_a]<=self.Imax[idx_line])
+                    self.add_SlimitTo_cut(index_bus_b,index_bus_a,idx_line,theta)
+                    # coefRWbb = np.cos(theta)*np.real(self.Ytt[line]) - np.sin(theta)*np.imag(self.Ytt[line])
+                    # coefRWba = np.cos(theta)*np.real(self.Ytf[line]) - np.sin(theta)*np.imag(self.Ytf[line])
+                    # coefIWba = np.cos(theta)*np.imag(self.Ytf[line]) + np.sin(theta)*np.real(self.Ytf[line])
+                    # self.mdl.add_constraint(coefRWbb*self.ReW[index_bus_b,index_bus_b]+coefRWba*self.ReW[index_bus_b,index_bus_a]+coefIWba*self.ImW[index_bus_b,index_bus_a]<=self.Imax[idx_line])
         
         self.maxratiologs.append(maxratio)
         self.sdpmeasurelogs.append(abs(sdpmeasure))
@@ -528,15 +544,17 @@ class piecewiseRelaxer():
         for b in range(self.n):
             xbar =self.L[b].solution_value
             if xbar**2>self.ReW[b,b].solution_value+self.accuracyC:
-                self.mdl.add_constraint(2*xbar*(self.L[b]-xbar)+xbar**2<=self.ReW[b,b])
+                self.add_quadLcut(b,xbar)
+                #self.mdl.add_constraint(2*xbar*(self.L[b]-xbar)+xbar**2<=self.ReW[b,b])
         #################### Cutting planes for |W[b,a]| \leq R[b,a] ################################
         for b,a in self.edgesNoDiag:
             if np.sqrt(self.ReW[b,a].solution_value**2 + self.ImW[b,a].solution_value**2) > self.R[b,a].solution_value + self.accuracyC:
                 theta = np.angle(self.ReW[b,a].solution_value + 1j*self.ImW[b,a].solution_value)
-                self.mdl.add_constraint(self.ReW[b,a]*np.cos(theta) + self.ImW[b,a]*np.sin(theta)<=self.R[b,a])
+                self.add_circle_cut(b,a,theta)
+                #self.mdl.add_constraint(self.ReW[b,a]*np.cos(theta) + self.ImW[b,a]*np.sin(theta)<=self.R[b,a])
         return rankone, sdp, quad_obj, bool_lineconstraints
                     
-    
+###### Individual linear cut functions #################################################
     def add_sdp_cut(self, idx_clique, vector, lazy =False):
         cl = self.cliques[idx_clique]
         nc = len(cl)
@@ -549,9 +567,34 @@ class piecewiseRelaxer():
         else:
             self.mdl.add_lazy_constraint(self.mdl.sum([self.ReW[i,j]*dicoMRe[i,j] for i,j in dicoMRe]) + self.mdl.sum([self.ImW[i,j]*dicoMIm[i,j] for i,j in dicoMIm]) >=0)
         
-            
-    def add_sdp_cutR(self, idx_clique, vector,lazy = False):
+    def add_obj_cut(self,i, xbar):
+        self.mdl.add_constraint(2*xbar*(self.Pgen[i]-xbar)+xbar**2<=self.Pgen2[i])
         
+    def add_quadLcut(self,b,xbar):
+        self.mdl.add_constraint(2*xbar*(self.L[b]-xbar)+xbar**2<=self.ReW[b,b])
+        
+    def add_circle_cut(self,b,a,theta):
+        self.mdl.add_constraint(self.ReW[b,a]*np.cos(theta) + self.ImW[b,a]*np.sin(theta)<=self.R[b,a])
+    
+    def add_SlimitFrom_cut(self,index_bus_b,index_bus_a,idx_line,theta):
+        line = self.clinelist[idx_line]
+        assert(line[0]==self.buslist[index_bus_b])
+        assert(line[1]==self.buslist[index_bus_a])
+        coefRWbb = np.cos(theta)*np.real(self.Yff[line]) - np.sin(theta)*np.imag(self.Yff[line])
+        coefRWba = np.cos(theta)*np.real(self.Yft[line]) - np.sin(theta)*np.imag(self.Yft[line])
+        coefIWba = np.cos(theta)*np.imag(self.Yft[line]) + np.sin(theta)*np.real(self.Yft[line])
+        self.mdl.add_constraint(coefRWbb*self.ReW[index_bus_b,index_bus_b]+coefRWba*self.ReW[index_bus_b,index_bus_a]+coefIWba*self.ImW[index_bus_b,index_bus_a]<=self.Imax[idx_line])
+    
+    def add_SlimitTo_cut(self,index_bus_b,index_bus_a,idx_line,theta):
+        line = self.clinelist[idx_line]
+        assert(line[1]==self.buslist[index_bus_b])
+        assert(line[0]==self.buslist[index_bus_a])
+        coefRWbb = np.cos(theta)*np.real(self.Ytt[line]) - np.sin(theta)*np.imag(self.Ytt[line])
+        coefRWba = np.cos(theta)*np.real(self.Ytf[line]) - np.sin(theta)*np.imag(self.Ytf[line])
+        coefIWba = np.cos(theta)*np.imag(self.Ytf[line]) + np.sin(theta)*np.real(self.Ytf[line])
+        self.mdl.add_constraint(coefRWbb*self.ReW[index_bus_b,index_bus_b]+coefRWba*self.ReW[index_bus_b,index_bus_a]+coefIWba*self.ImW[index_bus_b,index_bus_a]<=self.Imax[idx_line])
+                
+    def add_sdp_cutR(self, idx_clique, vector,lazy = False):
         cl = self.cliques[idx_clique]
         nc = len(cl)
         assert(len(vector)==1+nc)
@@ -591,7 +634,34 @@ class piecewiseRelaxer():
                 vector = U[:,k]
                 vector = vector.reshape((1+self.ncliques[i],1))
                 self.add_sdp_cutR(i, vector)
-        
+                
+    
+    def add_quad_cuts(self,PgenVal, LVal, ReWVal,ImWVal):
+        for i in range(self.gn):
+            if self.quadcost[i]:
+                self.add_obj_cut(i, PgenVal[i])
+        for i in range(self.n):
+            self.add_quadLcut(i, LVal[i])
+        for (b,a) in self.edgesNoDiag:
+            theta = np.angle(ReWVal[(b,a)] + 1j*ImWVal[(b,a)])
+            self.add_circle_cut(b,a,theta)
+        if self.config['lineconstraints']=='S':
+            for idx_line,line in enumerate(self.clinelistinv):
+                b,a,h = line
+                index_bus_b,index_bus_a = self.buslistinv[b],self.buslistinv[a]
+                X = np.conj(self.Yff[line])*ReWVal[(index_bus_b,index_bus_b)] + (np.conj(self.Yft[line]))*(ReWVal[(index_bus_b,index_bus_a)]+1j*ImWVal[(index_bus_b,index_bus_a)])
+                theta = np.angle(X)
+                self.add_SlimitFrom_cut(index_bus_b,index_bus_a,idx_line,theta)
+                #Switching indices to have (a,b,h) \in L
+                aux = index_bus_b
+                index_bus_b = index_bus_a
+                index_bus_a = aux
+                X = np.conj(self.Ytt[line])*ReWVal[(index_bus_b,index_bus_b)] + (np.conj(self.Ytf[line]))*(ReWVal[(index_bus_b,index_bus_a)]+1j*ImWVal[(index_bus_b,index_bus_a)])
+                theta = np.angle(X)
+                self.add_SlimitTo_cut(index_bus_b,index_bus_a,idx_line,theta)
+            
+            
+            
     
     
 ##### Functions to increment the number of binary variables
@@ -793,7 +863,6 @@ class piecewiseRelaxer():
         print("MIP start Value = {0}".format(val))
         for i in range(self.n):
             sol.add_var_value(self.L[i],self.local_optimizer_results.VM[i])
-            #sol.add_var_value(self.theta[i],np.pi*(self.local_optimizer_results.VA[i]/180.0 - self.local_optimizer_results.VA[0]/180.0))
             sol.add_var_value(self.theta[i],self.local_optimizer_results.theta[i] - self.local_optimizer_results.theta[0])
             
             sol.add_var_value(self.ReW[i,i],self.local_optimizer_results.VM[i]**2)
@@ -814,17 +883,16 @@ class piecewiseRelaxer():
                 
         for b in range(self.n):
             for k in self.x_indices[b]:
-                boolean = (self.local_optimizer_results.VM[b]>=self.umin[b,k]) and (self.local_optimizer_results.VM[b]<self.umax[b,k])
+                boolean = (self.local_optimizer_results.VM[b]>=self.umin[b,k]) and (self.local_optimizer_results.VM[b]<=self.umax[b,k])
                 sol.add_var_value(self.x[b,k],int(boolean))
-        
+                        
         #assert(sol.is_feasible_solution(silent=False,tolerance = 1e-4))
         self.mdl.add_mip_start(sol)
         
 
     def diagnosis(self):
         print("Objective value = {0}".format(self.mdl.objective_value))
-        
-        
+                
         for i in range(self.gn):
             print(self.Pgen2[i].solution_value-self.Pgen[i].solution_value**2)
         
@@ -851,10 +919,45 @@ class piecewiseRelaxer():
             assert(abs(sum([self.Qgen[idx_gen].solution_value for idx_gen in self.bus_to_gen[idx_bus]])-(self.Qload[idx_bus]+sum([self.ReW[i,j].solution_value*dicoZmbRe[i,j] for i,j in dicoZmbRe]) + sum([self.ImW[i,j].solution_value*dicoZmbIm[i,j] for i,j in dicoZmbIm])))<1E-6)
     
     
+    def current_subinterval_bounds(self):
+        Vmin,Vmax = np.zeros(self.n),np.zeros(self.n)
+        for b in range(self.n):
+            if len(self.x_leaves[b])==0:
+                Vmin[b] = self.Vmin[b]
+                Vmax[b] = self.Vmax[b]
+            else:
+                check = False
+                for k in self.x_leaves[b]:
+                    if self.x[b,k].solution_value>=0.99:
+                        assert(check==False)
+                        check=True
+                        Vmin[b] = self.umin[b,k]
+                        Vmax[b] = self.umax[b,k]
+        ThetaMinByEdge,ThetaMaxByEdge = {},{}
+        for b,a in self.edgesNoDiag:
+            if len(self.delta_leaves[b,a])==0:
+                ThetaMinByEdge[(b,a)] = self.ThetaMinByEdge[(b,a)]
+                ThetaMaxByEdge[(b,a)] = self.ThetaMaxByEdge[(b,a)]
+                ThetaMinByEdge[(a,b)] = self.ThetaMinByEdge[(a,b)]
+                ThetaMaxByEdge[(a,b)] = self.ThetaMaxByEdge[(a,b)]
+            else:
+                check = False
+                for k in self.delta_leaves[(b,a)]:
+                    if self.delta[(b,a),k].solution_value>=0.99:
+                        assert(check==False)
+                        check = True
+                        ThetaMinByEdge[(b,a)] = self.phimin[(b,a),k]
+                        ThetaMaxByEdge[(b,a)] = self.phimax[(b,a),k]
+                        ThetaMinByEdge[(a,b)] = -self.phimax[(b,a),k]
+                        ThetaMaxByEdge[(a,b)] = -self.phimin[(b,a),k]
+        
+        return Vmin,Vmax,ThetaMinByEdge,ThetaMaxByEdge
+    
     def iteration_log(self):
         df = pd.DataFrame()
         df['gap'] = (np.ones(len(self.bestLBlogs))*self.UB - np.array(self.bestLBlogs))/self.UB
         df['LB'] = self.bestLBlogs
+        df['UB'] = self.bestUBlogs
         df['rank_ratio'] = self.maxratiologs
         df['sdp_measure'] = self.sdpmeasurelogs
         
@@ -865,4 +968,18 @@ class piecewiseRelaxer():
             df.to_csv('output_S/'+self.name+'_global_logs.csv')
         else:
             df.to_csv('output_no_lim/'+self.name+'_global_logs.csv')
+            
+    
+    
+    def local_heuristic(self):
+        
+        thetaValref= {(b,a) : np.angle(self.ReW[b,a].solution_value+1j*self.ImW[b,a].solution_value) if (b<a) else np.angle(self.ReW[a,b].solution_value-1j*self.ImW[a,b].solution_value)  for (b,a) in self.ThetaMinByEdge}
+        vref = [self.L[b].solution_value for b in range(self.n)]
+        PgenVal = [self.Pgen[b].solution_value for b in range(self.n)]
+        self.local_optimizer_results.update_pen(100)
+        self.local_optimizer_results.update_pref(PgenVal)
+        self.local_optimizer_results.update_thetaref(thetaValref)
+        self.local_optimizer_results.update_vref(vref)
+        self.local_optimizer_results.solve()
+        self.UB = self.local_optimizer_results.value
             

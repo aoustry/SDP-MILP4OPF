@@ -10,9 +10,8 @@ Comparison with H. Godard's PhD thesis results => same total time limit (1h) and
 """
 
 
-
-
-from master import *
+from master import global_algo
+import sys
 
 #Instance parameters
 lineconstraints = False
@@ -58,4 +57,7 @@ instances = [
 
 
 for name_instance in instances:
-    global_algo(name_instance.replace('.m',''),lineconstraints,'data/benchmark_godard',BTtimeLimit,MILPtimeLimit,reltol)
+    try:
+        global_algo(name_instance.replace('.m',''),lineconstraints,'data/benchmark_godard',BTtimeLimit,MILPtimeLimit,reltol)
+    except:
+        print("Unexpected error:", sys.exc_info()[0])

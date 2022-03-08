@@ -5,7 +5,7 @@
 Special purpose file to test some variants of instance MATPOWER case57.
 """
 
-
+import sys
 from master import *
 
 #Global algo parameters
@@ -16,7 +16,6 @@ reltol = 1E-4
 
 #Instance parameters
 lineconstraints = 'I'
-
 
         
 instances = [ 
@@ -34,4 +33,7 @@ instances = [
 
 
 for name_instance in instances:
-    global_algo(name_instance.replace('.m',''),lineconstraints,'data/case57',BTtimeLimit,MILPtimeLimit,reltol)
+    try:
+        global_algo(name_instance.replace('.m',''),lineconstraints,'data/case57',BTtimeLimit,MILPtimeLimit,reltol)
+    except:
+        print("Unexpected error:", sys.exc_info()[0])
