@@ -298,9 +298,7 @@ class localACOPFsolver():
     def solve(self):
         opt = SolverFactory('ipopt')
         opt.options['tol'] = 1E-10
-        results = opt.solve(self.mdl)
-        #self.mdl.display()
-        print(results)
+        opt.solve(self.mdl)
         pgen = np.array([value(self.mdl.Pgen[i]) for i in range(self.gn)])
         qgen = np.array([value(self.mdl.Qgen[i]) for i in range(self.gn)])
         theta = np.array([value(self.mdl.theta[i]) for i in range(self.n)])
@@ -310,7 +308,7 @@ class localACOPFsolver():
         cost = self.offset
         for i in range(self.gn):
             cost+=pgen[i]*self.lincost[i] + (pgen[i]**2)*self.quadcost[i]
-        print(self.name,cost)
+        print("UB ("+self.name+")",cost)
         
         if self.__feasible(pgen,qgen, V) and cost<self.value:
             self.success = 1

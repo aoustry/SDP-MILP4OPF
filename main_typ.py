@@ -31,9 +31,8 @@ instances = [         'pglib_opf_case3_lmbd.m',
 
 
 for name_instance in instances:
-    try:
-        global_algo(name_instance.replace('.m',''),lineconstraints,'data/pglib-opf',BTtimeLimit,MILPtimeLimit,reltol)
+   
+    global_algo(name_instance.replace('.m',''),lineconstraints,'data/pglib-opf',BTtimeLimit,MILPtimeLimit,reltol)
     
-    except:
-        print("Unexpected error:", sys.exc_info()[0])
+   
     
