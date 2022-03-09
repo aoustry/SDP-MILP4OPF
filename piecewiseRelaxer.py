@@ -975,7 +975,7 @@ class piecewiseRelaxer():
         
         thetaValref= {(b,a) : np.angle(self.ReW[b,a].solution_value+1j*self.ImW[b,a].solution_value) if (b<a) else np.angle(self.ReW[a,b].solution_value-1j*self.ImW[a,b].solution_value)  for (b,a) in self.ThetaMinByEdge}
         vref = [self.L[b].solution_value for b in range(self.n)]
-        PgenVal = [self.Pgen[b].solution_value for b in range(self.n)]
+        PgenVal = [self.Pgen[b].solution_value for b in range(self.gn)]
         self.local_optimizer_results.update_pen(100)
         self.local_optimizer_results.update_pref(PgenVal)
         self.local_optimizer_results.update_thetaref(thetaValref)
