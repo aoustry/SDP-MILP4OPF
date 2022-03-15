@@ -1,4 +1,4 @@
-from master import global_algo
+from master2 import global_algo
 import sys
 
 #Global algo parameters
@@ -12,8 +12,8 @@ lineconstraints = 'S'
 
 #Instances list
 instances = [         'pglib_opf_case3_lmbd.m',
-                        'pglib_opf_case5_pjm.m', 
-                        'pglib_opf_case14_ieee.m',
+                       'pglib_opf_case5_pjm.m', 
+                       'pglib_opf_case14_ieee.m',
                           'pglib_opf_case24_ieee_rts.m',
                         'pglib_opf_case30_as.m',
                   'pglib_opf_case30_ieee.m',
@@ -31,9 +31,8 @@ instances = [         'pglib_opf_case3_lmbd.m',
 
 
 for name_instance in instances:
-    try:
-        global_algo(name_instance.replace('.m','')+"__api",lineconstraints,'data/pglib-opf/api',BTtimeLimit,MILPtimeLimit,reltol)
     
-    except:
-        print("Unexpected error:", sys.exc_info()[0])
+    global_algo(name_instance.replace('.m','')+"__api",lineconstraints,'data/pglib-opf/api',BTtimeLimit,MILPtimeLimit,reltol)
+    
+    
     

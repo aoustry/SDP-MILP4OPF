@@ -256,7 +256,7 @@ class EnhancedSdpRelaxer():
                 nc = self.ncliques[idx_clique]
                 clique = self.cliques[idx_clique]
                 X[idx_clique] = M.variable(Domain.inPSDCone(2*nc))
-                R[idx_clique] = M.variable("R"+str(idx_clique), [nc+1,nc+1], Domain.unbounded())
+                R[idx_clique] = M.variable("R"+str(idx_clique), [nc+1,nc+1], Domain.inPSDCone(1+nc))
                 A[idx_clique] = M.variable("A"+str(idx_clique), [nc,nc], Domain.unbounded())
                 B[idx_clique] = M.variable("B"+str(idx_clique), [nc,nc], Domain.unbounded())
                 # # #Voltage bounds
