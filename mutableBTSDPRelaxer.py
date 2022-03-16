@@ -10,11 +10,12 @@ import itertools
 from scipy.sparse import lil_matrix, coo_matrix
 import numpy as np
 from mosek.fusion import *
+from numpy.linalg import eigvalsh
 
 myZeroforCosts = 1E-6
-#My infty
 myinf_power_lim = 1E4
 epsilonV = 1e-6
+RSDP = False
 
 class BTSDPRelaxer():
     
@@ -257,6 +258,9 @@ class BTSDPRelaxer():
             clique = self.cliques[idx_clique]
             X[idx_clique] = M.variable(Domain.inPSDCone(2*nc))
             R[idx_clique] = M.variable("R"+str(idx_clique), [nc+1,nc+1], Domain.unbounded())
+            if RSDP:
+                Rtilde[idx_clique] = M.variable("Rtilde"+str(idx_clique), Domain.inPSDCone(nc+1))
+                M.constraint(Expr.sub(Rtilde[idx_clique],R[idx_clique]),Domain.equalsTo(0))
             A[idx_clique] = M.variable("A"+str(idx_clique), [nc,nc], Domain.unbounded())
             B[idx_clique] = M.variable("B"+str(idx_clique), [nc,nc], Domain.unbounded())
 
@@ -275,6 +279,7 @@ class BTSDPRelaxer():
             
             
             M.constraint(R[idx_clique].index(0,0),Domain.equalsTo(1.0))
+            M.constraint(Expr.sub(Expr.transpose(R[idx_clique]),R[idx_clique]),Domain.equalsTo(0))
             
             for i in range(nc):
                 b = clique[i]
@@ -526,5 +531,10 @@ class BTSDPRelaxer():
         self.M.setSolverParam("intpntCoTolDfeas", 1.0e-8)
         self.M.setSolverParam("intpntSolveForm", "dual")
         self.M.solve()
-        
         return self.M.dualObjValue()
+    
+    def __print_min_eig(self):
+        for i in range(self.cliques_nbr):
+            nc = self.ncliques[i]
+            auxR = (self.R[i].level()).reshape(nc+1,nc+1)
+            print(min(eigvalsh(auxR)))
