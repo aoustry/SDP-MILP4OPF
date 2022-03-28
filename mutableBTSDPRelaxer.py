@@ -16,6 +16,7 @@ myZeroforCosts = 1E-6
 myinf_power_lim = 1E4
 epsilonV = 1e-6
 RSDP = False
+scalebound = 100
 
 class BTSDPRelaxer():
     
@@ -487,13 +488,13 @@ class BTSDPRelaxer():
         assert(bobj in clique)
         assert(aobj in clique)
         auxi,auxj = clique.index(bobj),clique.index(aobj)
-        self.M.objective(ObjectiveSense.Minimize,self.B[idx_clique_obj].index(auxi,auxj))
+        self.M.objective(ObjectiveSense.Minimize,Expr.mul(scalebound,self.B[idx_clique_obj].index(auxi,auxj)))
         self.M.acceptedSolutionStatus(AccSolutionStatus.Anything)
         self.M.setSolverParam("intpntCoTolPfeas", 1.0e-8)
         self.M.setSolverParam("intpntCoTolDfeas", 1.0e-8)
         self.M.setSolverParam("intpntSolveForm", "dual")
         self.M.solve()
-        return self.M.dualObjValue()
+        return self.M.dualObjValue()/scalebound
     
     
     def computeBTmaxAngle(self,idx_clique_obj,bobj,aobj):
@@ -501,37 +502,37 @@ class BTSDPRelaxer():
         assert(bobj in clique)
         assert(aobj in clique)
         auxi,auxj = clique.index(bobj),clique.index(aobj)
-        self.M.objective(ObjectiveSense.Maximize,self.B[idx_clique_obj].index(auxi,auxj))
+        self.M.objective(ObjectiveSense.Maximize,Expr.mul(scalebound,self.B[idx_clique_obj].index(auxi,auxj)))
         self.M.acceptedSolutionStatus(AccSolutionStatus.Anything)
         self.M.setSolverParam("intpntCoTolPfeas", 1.0e-8)
         self.M.setSolverParam("intpntCoTolDfeas", 1.0e-8)
         self.M.setSolverParam("intpntSolveForm", "dual")
         self.M.solve() 
-        return self.M.dualObjValue()
+        return self.M.dualObjValue()/scalebound
     
     def computeBTminMag(self,idx_clique_obj,bobj):
         clique = self.cliques[idx_clique_obj]
         assert(bobj in clique)
         auxi = clique.index(bobj)
-        self.M.objective(ObjectiveSense.Minimize,self.A[idx_clique_obj].index(auxi,auxi))
+        self.M.objective(ObjectiveSense.Minimize,Expr.mul(scalebound,self.A[idx_clique_obj].index(auxi,auxi)))
         self.M.acceptedSolutionStatus(AccSolutionStatus.Anything)
         self.M.setSolverParam("intpntCoTolPfeas", 1.0e-8)
         self.M.setSolverParam("intpntCoTolDfeas", 1.0e-8)
         self.M.setSolverParam("intpntSolveForm", "dual")
         self.M.solve()
-        return self.M.dualObjValue()
+        return self.M.dualObjValue()/scalebound
     
     def computeBTmaxMag(self,idx_clique_obj,bobj):
         clique = self.cliques[idx_clique_obj]
         assert(bobj in clique)
         auxi = clique.index(bobj)
-        self.M.objective(ObjectiveSense.Maximize,self.A[idx_clique_obj].index(auxi,auxi))
+        self.M.objective(ObjectiveSense.Maximize,Expr.mul(scalebound,self.A[idx_clique_obj].index(auxi,auxi)))
         self.M.acceptedSolutionStatus(AccSolutionStatus.Anything)
         self.M.setSolverParam("intpntCoTolPfeas", 1.0e-8)
         self.M.setSolverParam("intpntCoTolDfeas", 1.0e-8)
         self.M.setSolverParam("intpntSolveForm", "dual")
         self.M.solve()
-        return self.M.dualObjValue()
+        return self.M.dualObjValue()/scalebound
     
     def __print_min_eig(self):
         for i in range(self.cliques_nbr):

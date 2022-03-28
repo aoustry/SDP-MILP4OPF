@@ -13,6 +13,7 @@ import time
 import sdpRelaxer
 import EnhancedSdpRelaxer
 import mutableBTSDPRelaxer
+import pandas as pd
 from progress.bar import Bar
 
 #Paths
@@ -72,6 +73,7 @@ def bound_tightening(I,localOptParser,BTtimeLimit,reltol):
     assert(localOptParser.success ==1)
     niter = 4
     deadline = BTtimeLimit + time.time()
+    log_sdp_values = []
     print('FBBT/OBBT started')
     for counter in range(niter):
         tol = 1e-6
@@ -83,6 +85,7 @@ def bound_tightening(I,localOptParser,BTtimeLimit,reltol):
         Bound_tightener.buildModel(obj)
         bar = Bar('Angle tightening', max=len(I.SymEdgesNoDiag))
         for (i,j) in I.SymEdgesNoDiag:
+            assert(I.ThetaMinByEdge[(i,j)]== Bound_tightener.ThetaMinByEdge[(i,j)])
             if deadline<time.time():
                 break
             if (i<j) and I.ThetaMaxByEdge[(i,j)]<=np.pi/2 and I.ThetaMinByEdge[(i,j)]>=-0.5*np.pi:
@@ -104,9 +107,11 @@ def bound_tightening(I,localOptParser,BTtimeLimit,reltol):
             bar.next()
         bar.finish()
         valSDP,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
+        log_sdp_values.append(valSDP)
         if abs(localOptParser.value - valSDP)/localOptParser.value < reltol:
-            return I
+            return I, log_sdp_values
         bar = Bar('Magnitude tightening', max=I.n)
+        assert(I.Vmin[i] == Bound_tightener.Vmin[i])
         for i in range(I.n):
             if deadline<time.time():
                 break
@@ -143,10 +148,11 @@ def bound_tightening(I,localOptParser,BTtimeLimit,reltol):
             Bound_tightener.update_angle(idx_clique,i,j,Bound_tightener.ThetaMinByEdge[(i,j)],Bound_tightener.ThetaMaxByEdge[(i,j)])
             
         valSDP,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
+        log_sdp_values.append(valSDP)
         if abs(localOptParser.value - valSDP)/localOptParser.value < reltol:
-            return I
+            return I, log_sdp_values
     print('FBBT/OBBT ended')
-    return I
+    return I, log_sdp_values
 
 def basicsdp_relaxation_value(name_instance,I,ub):
     B = sdpRelaxer.sdpRelaxer(I)
@@ -158,7 +164,12 @@ def basicsdp_relaxation_value(name_instance,I,ub):
         f.close()
     return val
 
-
+def saveBTbound_evolution(name_instance,lineconstraints,log_sdp_values):
+    if len(log_sdp_values):
+        df = pd.DataFrame()
+        df['LB'] = log_sdp_values
+        df.to_csv(folder_dict[lineconstraints]+'/'+name_instance+'_BT_progress.csv')
+        
 
 def global_algo(name_instance,lineconstraints,case_datafolder,BTtimeLimit,MILPtimeLimit,reltol):
     maxit = 1e5
@@ -181,7 +192,8 @@ def global_algo(name_instance,lineconstraints,case_datafolder,BTtimeLimit,MILPti
         bestGap = abs(localOptParser.value - valSDP)/localOptParser.value
         status = 'Strengthened SDP relaxation has no gap '
     else:
-        I = bound_tightening(I,localOptParser,BTtimeLimit,reltol)
+        I,log_sdp_values = bound_tightening(I,localOptParser,BTtimeLimit,reltol)
+        saveBTbound_evolution(name_instance,lineconstraints,log_sdp_values)
         value,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
         timeBTSDP = time.time() - t0
         print('Time BTSDP = {0}'.format(timeBTSDP))

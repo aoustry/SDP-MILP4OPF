@@ -30,6 +30,7 @@ class piecewiseRelaxer():
               
         """
         print("------ Piecewise relaxation solver for the ACOPF -----------")
+        print('feasibility assertion to delete')
         self.name = ACOPF.name
         self.config = config
         self.local_optimizer_results = local_optimizer_results
@@ -874,19 +875,27 @@ class piecewiseRelaxer():
             sol.add_var_value(self.ImW[b,a],np.imag(prod))
             sol.add_var_value(self.R[b,a],abs(prod))
         
-        for edge in self.edgesNoDiag:
+        for edge in self.edgesNoDiag:   
             b,a = edge
             diff = (self.local_optimizer_results.theta[b]-self.local_optimizer_results.theta[a])
+            diff = max(self.ThetaMinByEdge[edge],min(self.ThetaMaxByEdge[edge],diff))
             for k in self.delta_indices[edge]:
                 boolean = (diff>=self.phimin[edge,k]) and (diff<self.phimax[edge,k])
                 sol.add_var_value(self.delta[edge,k],int(boolean))
                 
         for b in range(self.n):
+            somme = 0
+            print('------')
             for k in self.x_indices[b]:
-                boolean = (self.local_optimizer_results.VM[b]>=self.umin[b,k]) and (self.local_optimizer_results.VM[b]<=self.umax[b,k])
+                value_magnitude = max(self.Vmin[b], min(self.Vmax[b], self.local_optimizer_results.VM[b]))
+                boolean = (value_magnitude>=self.umin[b,k]) and (value_magnitude<=self.umax[b,k])
                 sol.add_var_value(self.x[b,k],int(boolean))
+                somme+=boolean
+                print(self.umin[b,k],self.umax[b,k])
+            print(self.x_indices[b],somme)
+            print(self.local_optimizer_results.VM[b])
                         
-        #assert(sol.is_feasible_solution(silent=False,tolerance = 1e-4))
+        assert(sol.is_feasible_solution(silent=False,tolerance = 1e-4))
         self.mdl.add_mip_start(sol)
         
 
