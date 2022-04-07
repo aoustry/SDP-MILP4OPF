@@ -759,7 +759,7 @@ class piecewiseRelaxer():
         if len(self.x_indices[b])==0:
             vmin, vmax = self.Vmin[b],self.Vmax[b]
             val = self.L[b].solution_value
-            print(abs(vmin-val),abs(vmax-val))
+            
             if abs(vmin-val)>1E-7 and abs(vmax-val)>1E-7:
                 self.binaries = True
                 self.x_indices[b] = list(range(2))
@@ -891,9 +891,7 @@ class piecewiseRelaxer():
                 boolean = (value_magnitude>=self.umin[b,k]) and (value_magnitude<=self.umax[b,k])
                 sol.add_var_value(self.x[b,k],int(boolean))
                 somme+=boolean
-                print(self.umin[b,k],self.umax[b,k])
-            print(self.x_indices[b],somme)
-            print(self.local_optimizer_results.VM[b])
+                
                         
         assert(sol.is_feasible_solution(silent=False,tolerance = 1e-4))
         self.mdl.add_mip_start(sol)
