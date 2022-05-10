@@ -112,7 +112,7 @@ class localACOPFsolver():
     #     return self.ThetaMinByEdge[(b,a)]
     
     def __feasible(self,pgen,qgen,V):
-        tol, res = 1e-6, True
+        tol, res = 1e-5, True
         for i in range(self.gn):
             res = res and (pgen[i]<= self.Pmax[i] + tol)
             res = res and (pgen[i]>= self.Pmin[i] - tol)
@@ -309,7 +309,7 @@ class localACOPFsolver():
 
     def solve(self):
         opt = SolverFactory('ipopt')
-        opt.options['tol'] = 1E-10
+        opt.options['tol'] = 1E-8
         opt.solve(self.mdl)
         pgen = np.array([value(self.mdl.Pgen[i]) for i in range(self.gn)])
         qgen = np.array([value(self.mdl.Qgen[i]) for i in range(self.gn)])
@@ -322,7 +322,7 @@ class localACOPFsolver():
             cost+=pgen[i]*self.lincost[i] + (pgen[i]**2)*self.quadcost[i]
         print("UB ("+self.name+")",cost)
         
-        if self.__feasible(pgen,qgen, V) and cost<self.value:
+        if self.__feasible(pgen,qgen, V) and cost<=self.value:
             self.success = 1
             self.value = cost
             self.Pgen, self.Qgen, self.V = pgen,qgen, V

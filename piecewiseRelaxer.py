@@ -302,7 +302,7 @@ class piecewiseRelaxer():
         self.mdl.context.solver.log_output = True
         self.mdl.parameters.emphasis.numerical = 1
         self.mdl.parameters.mip.tolerances.mipgap = 0.5*rel_tol
-        #self.mdl.parameters.read.scale = -1
+        self.mdl.parameters.read.scale = -1
         self.mdl.parameters.simplex.tolerances.feasibility = 1E-9
       
         self.total_it_number = it =  0

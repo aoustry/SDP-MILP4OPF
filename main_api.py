@@ -3,7 +3,7 @@ import sys
 
 #Global algo parameters
 BTtimeLimit = 10*3600
-MILPtimeLimit = 6*3600
+MILPtimeLimit = 5*3600
 reltol = 1E-4
 
 
@@ -12,10 +12,10 @@ lineconstraints = 'S'
 
 #Instances list
 instances = [         'pglib_opf_case3_lmbd.m',
-                           'pglib_opf_case5_pjm.m', 
+                            'pglib_opf_case5_pjm.m', 
                           'pglib_opf_case14_ieee.m',
                             'pglib_opf_case24_ieee_rts.m',
-                           'pglib_opf_case30_as.m',
+                            'pglib_opf_case30_as.m',
                     'pglib_opf_case30_ieee.m',
                       'pglib_opf_case39_epri.m',
                     'pglib_opf_case57_ieee.m',
@@ -27,8 +27,7 @@ instances = [         'pglib_opf_case3_lmbd.m',
         'pglib_opf_case200_activ.m', 
       'pglib_opf_case240_pserc.m', 
     'pglib_opf_case300_ieee.m',
-    'pglib_opf_case500_goc.m', 
-    'pglib_opf_case588_sdet.m'
+    'pglib_opf_case500_goc.m'
 
 ]
 

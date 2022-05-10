@@ -1,0 +1,7 @@
+Time BT-SDP = 4472.32217502594 
+BT-SDP value = 757424.229449022 
+Time MILP = 18003.7908513546
+Total iteration number = 37
+Best-LB = 759037.5294156865
+Best-gap = 0.004583406514676472
+Time limit
