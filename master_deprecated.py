@@ -12,8 +12,7 @@ import piecewiseRelaxer
 import time
 import sdpRelaxer
 import EnhancedSdpRelaxer
-import mutableBTSDPRelaxer
-import pandas as pd
+import BTSDPRelaxer
 from progress.bar import Bar
 
 #Paths
@@ -65,70 +64,55 @@ def load_instance(name_instance,lineconstraints,case_datafolder):
     return Instance
 
 def compute_sdp_cuts(I):
-    sdprelaxer = EnhancedSdpRelaxer.EnhancedSdpRelaxer(I)
-    value,X1,X2, PgenVal, LVal, ReWVal,ImWVal = sdprelaxer.computeDuals()
+    B2 = EnhancedSdpRelaxer.EnhancedSdpRelaxer(I)
+    value,X1,X2, PgenVal, LVal, ReWVal,ImWVal = B2.computeDuals()
     return value,X1,X2, PgenVal, LVal, ReWVal,ImWVal
 
 def bound_tightening(I,localOptParser,BTtimeLimit,reltol):
     assert(localOptParser.success ==1)
     niter = 4
     deadline = BTtimeLimit + time.time()
-    log_sdp_values = []
     print('FBBT/OBBT started')
     for counter in range(niter):
         tol = 1e-6
         print('FBBT/OBBT Round {0}/{1}'.format(counter+1, niter))
         if deadline<time.time():
             break
-        obj = localOptParser.value + 1e-5
-        Bound_tightener = mutableBTSDPRelaxer.BTSDPRelaxer(I)
-        Bound_tightener.buildModel(obj)
+        B = BTSDPRelaxer.BTSDPRelaxer(I)
+        obj = localOptParser.value + 1e-3
         bar = Bar('Angle tightening', max=len(I.SymEdgesNoDiag))
         for (i,j) in I.SymEdgesNoDiag:
-            assert(I.ThetaMinByEdge[(i,j)]== Bound_tightener.ThetaMinByEdge[(i,j)])
             if deadline<time.time():
                 break
             if (i<j) and I.ThetaMaxByEdge[(i,j)]<=np.pi/2 and I.ThetaMinByEdge[(i,j)]>=-0.5*np.pi:
                 idx_clique = I.SymEdgesNoDiag_to_clique[(i,j)]
-                bound_lower = Bound_tightener.computeBTminAngle(idx_clique,i,j)
+                bound_lower = B.computeBTminAngle(obj,idx_clique,i,j)
                 if (bound_lower>tol+np.imag(localOptParser.V[i]*np.conj(localOptParser.V[j]))):
                      print('Angle alert !! {0}'.format(bound_lower-np.imag(localOptParser.V[i]*np.conj(localOptParser.V[j]))))
-                newThetamin =  max(I.ThetaMinByEdge[(i,j)],np.arcsin(min(bound_lower/(I.Vmin[i]*I.Vmin[j]),bound_lower/(I.Vmax[i]*I.Vmax[j]))))
-                I.ThetaMinByEdge[(i,j)]= Bound_tightener.ThetaMinByEdge[(i,j)] = newThetamin
-                Bound_tightener.update_angle(idx_clique,i,j,newThetamin,I.ThetaMaxByEdge[(i,j)])
+                I.ThetaMinByEdge[(i,j)] = B.ThetaMinByEdge[(i,j)] = max(I.ThetaMinByEdge[(i,j)],np.arcsin(min(bound_lower/(I.Vmin[i]*I.Vmin[j]),bound_lower/(I.Vmax[i]*I.Vmax[j]))))
                 
-                
-                upper_bound = Bound_tightener.computeBTmaxAngle(idx_clique,i,j)
+                upper_bound = B.computeBTmaxAngle(obj,idx_clique,i,j)
                 if (upper_bound+tol<np.imag(localOptParser.V[i]*np.conj(localOptParser.V[j]))):
                      print('Angle alert !! {0}'.format(-upper_bound+np.imag(localOptParser.V[i]*np.conj(localOptParser.V[j]))))
-                newThetaMax = min(I.ThetaMaxByEdge[(i,j)],np.arcsin(max(upper_bound/(I.Vmin[i]*I.Vmin[j]),upper_bound/(I.Vmax[i]*I.Vmax[j]))))
-                I.ThetaMaxByEdge[(i,j)] = Bound_tightener.ThetaMaxByEdge[(i,j)] = newThetaMax
-                Bound_tightener.update_angle(idx_clique,i,j,I.ThetaMinByEdge[(i,j)],newThetaMax)
+                I.ThetaMaxByEdge[(i,j)] = B.ThetaMaxByEdge[(i,j)] = min(I.ThetaMaxByEdge[(i,j)],np.arcsin(max(upper_bound/(I.Vmin[i]*I.Vmin[j]),upper_bound/(I.Vmax[i]*I.Vmax[j]))))
             bar.next()
         bar.finish()
         valSDP,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
-        log_sdp_values.append(valSDP)
         if abs(localOptParser.value - valSDP)/localOptParser.value < reltol:
-            return I, log_sdp_values
+            return I
         bar = Bar('Magnitude tightening', max=I.n)
-        assert(I.Vmin[i] == Bound_tightener.Vmin[i])
         for i in range(I.n):
             if deadline<time.time():
                 break
             idx_clique = I.globalBusIdx_to_cliques[i][0]
-            lower_bound = Bound_tightener.computeBTminMag(idx_clique,i)
+            lower_bound = B.computeBTminMag(obj,idx_clique,i)
             if (np.sqrt(lower_bound)>tol+abs(localOptParser.V[i])):
                      print('LB Magnitude alert !! {0}'.format(np.sqrt(lower_bound)-abs(localOptParser.V[i])))
-            newVmin = max(I.Vmin[i],np.sqrt(lower_bound))
-            I.Vmin[i] = Bound_tightener.Vmin[i] = newVmin
-            Bound_tightener.updateV(newVmin,Bound_tightener.Vmax[i],i)
-            
-            upper_bound = Bound_tightener.computeBTmaxMag(idx_clique,i)
+            I.Vmin[i] = B.Vmin[i] = max(I.Vmin[i],np.sqrt(lower_bound))
+            upper_bound = B.computeBTmaxMag(obj,idx_clique,i)
+            I.Vmax[i] = B.Vmax[i] = min(I.Vmax[i],np.sqrt(upper_bound))
             if (np.sqrt(upper_bound)+tol<abs(localOptParser.V[i])):
                      print('UB Magnitude alert !! {0}'.format(-np.sqrt(upper_bound)+abs(localOptParser.V[i])))
-            newVmax = min(I.Vmax[i],np.sqrt(upper_bound))
-            I.Vmax[i] = Bound_tightener.Vmax[i] = newVmax
-            Bound_tightener.updateV(Bound_tightener.Vmin[i],newVmax,i)
             bar.next()
         bar.finish()
         for i,j in I.SymEdgesNoDiag:
@@ -142,17 +126,12 @@ def bound_tightening(I,localOptParser,BTtimeLimit,reltol):
             I.ThetaMinByEdge[(i,j)] = max(I.ThetaMinByEdge[(i,j)], -I.ThetaMaxByEdge[(j,i)])
             I.ThetaMaxByEdge[(i,j)] = min(I.ThetaMaxByEdge[(i,j)], -I.ThetaMinByEdge[(j,i)])
             
-        Bound_tightener.ThetaMinByEdge, Bound_tightener.ThetaMaxByEdge = I.ThetaMinByEdge, I.ThetaMaxByEdge
-        for (i,j) in I.SymEdgesNoDiag:
-            idx_clique = I.SymEdgesNoDiag_to_clique[(i,j)]
-            Bound_tightener.update_angle(idx_clique,i,j,Bound_tightener.ThetaMinByEdge[(i,j)],Bound_tightener.ThetaMaxByEdge[(i,j)])
-            
+        B.ThetaMinByEdge, B.ThetaMaxByEdge = I.ThetaMinByEdge, I.ThetaMaxByEdge
         valSDP,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
-        log_sdp_values.append(valSDP)
         if abs(localOptParser.value - valSDP)/localOptParser.value < reltol:
-            return I, log_sdp_values
+            return I
     print('FBBT/OBBT ended')
-    return I, log_sdp_values
+    return I
 
 def basicsdp_relaxation_value(name_instance,I,ub):
     B = sdpRelaxer.sdpRelaxer(I)
@@ -164,12 +143,33 @@ def basicsdp_relaxation_value(name_instance,I,ub):
         f.close()
     return val
 
-def saveBTbound_evolution(name_instance,lineconstraints,log_sdp_values):
-    if len(log_sdp_values):
-        df = pd.DataFrame()
-        df['LB'] = log_sdp_values
-        df.to_csv(folder_dict[lineconstraints]+'/'+name_instance+'_BT_progress.csv')
-        
+
+# def test_algo(name_instance,lineconstraints,case_datafolder):
+#     maxit = 1e5
+   
+#     print('############################################')
+#     print("Start loading instance " +name_instance)
+#     t0 = time.time()
+#     I = load_instance(name_instance,lineconstraints,case_datafolder)
+#     lineconstraints = I.config['lineconstraints']
+#     localOptParser = localACOPFsolver(I)
+#     localOptParser.solve()
+#     valSDP,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
+#     thetaValref= {(index_b,index_a) : np.angle(ReWVal[(index_b,index_a)]+1j*ImWVal[(index_b,index_a)]) for (index_b,index_a) in I.SymEdgesNoDiag}
+#     vref = [np.sqrt(ReWVal[(b,b)]) for b in range(I.n)]
+#     # Pmin = np.maximum(0.9*np.array(PgenVal),I.Pmin)
+#     # Pmax = np.minimum(1.1*np.array(PgenVal),I.Pmax)
+#     # Vmin = np.maximum(np.array([0.9*np.sqrt(ReWVal[(b,b)]) for b in range(I.n)]),I.Vmin)
+#     # Vmax = np.minimum(np.array([1.1*np.sqrt(ReWVal[(b,b)]) for b in range(I.n)]),I.Vmax)
+#     # localOptParser.update_active_power_bounds(Pmin, Pmax)
+#     # localOptParser.update_magnitude_bounds(Vmin, Vmax)
+#     localOptParser.update_pen(100)
+#     localOptParser.update_pref(PgenVal)
+#     localOptParser.update_thetaref(thetaValref)
+#     localOptParser.update_vref(vref)
+#     localOptParser.solve()
+#     print('best:')
+#     print(localOptParser.value)
 
 def global_algo(name_instance,lineconstraints,case_datafolder,BTtimeLimit,MILPtimeLimit,reltol):
     maxit = 1e5
@@ -192,8 +192,7 @@ def global_algo(name_instance,lineconstraints,case_datafolder,BTtimeLimit,MILPti
         bestGap = abs(localOptParser.value - valSDP)/localOptParser.value
         status = 'Strengthened SDP relaxation has no gap '
     else:
-        I,log_sdp_values = bound_tightening(I,localOptParser,BTtimeLimit,reltol)
-        saveBTbound_evolution(name_instance,lineconstraints,log_sdp_values)
+        I = bound_tightening(I,localOptParser,BTtimeLimit,reltol)
         value,X1,X2, PgenVal, LVal, ReWVal,ImWVal = compute_sdp_cuts(I)
         timeBTSDP = time.time() - t0
         print('Time BTSDP = {0}'.format(timeBTSDP))

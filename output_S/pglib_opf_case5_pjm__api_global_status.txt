@@ -1,7 +1,7 @@
-Time BT-SDP = 2.4515626430511475 
-BT-SDP value = 76376.6771576012 
-Time MILP = 0.1607499122619629
-Total iteration number = 1
-Best-LB = 76375.9840933777
-Best-gap = 1.8681939326468187e-05
-Local solver's Gap closed
+Time BT-SDP = 2.3765604496002197 
+BT-SDP value = 76376.37474511296 
+Time MILP = 0
+Total iteration number = 0
+Best-LB = 76376.37474511296
+Best-gap = 1.3567193579757297e-05
+Strengthened and tightened SDP relaxation has no gap 

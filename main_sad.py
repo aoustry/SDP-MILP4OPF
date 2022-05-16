@@ -1,4 +1,4 @@
-from master2 import global_algo
+from master import global_algo,basicsdp_relaxation_value
 import sys
 
 #Global algo parameters
@@ -23,7 +23,7 @@ instances = [         'pglib_opf_case3_lmbd.m',
           'pglib_opf_case89_pegase.m',    
           'pglib_opf_case118_ieee.m',  
       'pglib_opf_case162_ieee_dtc.m', 
-     'pglib_opf_case179_goc.m', 
+    'pglib_opf_case179_goc.m', 
         'pglib_opf_case200_activ.m', 
      'pglib_opf_case240_pserc.m', 
     'pglib_opf_case300_ieee.m',
@@ -33,7 +33,7 @@ instances = [         'pglib_opf_case3_lmbd.m',
 
 
 for name_instance in instances:
-
+    #basicsdp_relaxation_value(name_instance.replace('.m','')+"__sad",lineconstraints,'data/pglib-opf/sad')
     global_algo(name_instance.replace('.m','')+"__sad",lineconstraints,'data/pglib-opf/sad',BTtimeLimit,MILPtimeLimit,reltol)
     
    

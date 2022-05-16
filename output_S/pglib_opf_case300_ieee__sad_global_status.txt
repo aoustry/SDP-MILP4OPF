@@ -1,7 +1,7 @@
 Time BT-SDP = 5601.104682922363 
 BT-SDP value = 565656.6292542453 
-Time MILP = 14.001556873321533
-Total iteration number = 4
-Best-LB = 565651.161666918
+Time MILP = 0
+Total iteration number = 0
+Best-LB = 565656.6292542453
 Best-gap = 9.392657709134579e-05
 Local solver's Gap closed

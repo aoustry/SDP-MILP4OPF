@@ -260,6 +260,17 @@ class sdpRelaxer():
                 M.constraint(Expr.add(Expr.mul(1/np.sqrt(2),B[idx_clique]),X[idx_clique].slice([0,nc], [nc,2*nc])), Domain.equalsTo(0,nc,nc))
                         
                 
+                for i in range(nc):
+                    for j in range(nc):
+                        if i<j and not((clique[i],clique[j]) in already_covered):
+                            assert(clique[i]<clique[j])
+                            b,a = clique[i],clique[j]
+                            already_covered.add((clique[i],clique[j]))
+                            phimin,phimax = self.ThetaMinByEdge[(clique[i],clique[j])],self.ThetaMaxByEdge[(clique[i],clique[j])]
+                            if phimax-phimin<=np.pi:
+                                M.constraint(Expr.add(Expr.mul(-np.sin(phimin),A[idx_clique].index(i,j)),Expr.mul(np.cos(phimin),B[idx_clique].index(i,j))),Domain.greaterThan(0))
+                                M.constraint(Expr.add(Expr.mul(-np.sin(phimax),A[idx_clique].index(i,j)),Expr.mul(np.cos(phimax),B[idx_clique].index(i,j))),Domain.lessThan(0))
+                                
             #Active and Reactive Power conservation
             for index_bus in range(self.n):
                 
