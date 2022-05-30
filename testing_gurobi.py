@@ -15,7 +15,7 @@ import time
 
 import EnhancedSdpRelaxer
 import BTSDPRelaxer
-import mipsParser 
+from localSolver import  localACOPFsolver
 
 from progress.bar import Bar
 
@@ -34,13 +34,13 @@ with_lazy_random_sdp_cuts = False
 def load_instance(name_instance):
     np.random.seed(10)
     instance_config = {"lineconstraints" : lineconstraints,  "cliques_strategy":"ASP"}
-    Instance = instance.ACOPFinstance("pglib-opf/{0}.m".format(name_instance),name_instance,instance_config)
+    Instance = instance.ACOPFinstance("data/pglib-opf/{0}.m".format(name_instance),name_instance,instance_config)
     return Instance
 
-def compute_sdp_cuts(I):
-    B2 = EnhancedSdpRelaxer.EnhancedSdpRelaxer(I)
-    value,X1,X2 = B2.computeDuals()
-    return value,X1,X2
+# def compute_sdp_cuts(I):
+#     B2 = EnhancedSdpRelaxer.EnhancedSdpRelaxer(I)
+#     value,X1,X2 = B2.computeDuals()
+#     return value,X1,X2
 
 def load_instance_and_bound_tightening(name_instance):
     I = load_instance(name_instance)
@@ -48,7 +48,7 @@ def load_instance_and_bound_tightening(name_instance):
         folder = 'mips_outputs_lc'
     else:
         folder = 'mips_outputs_S'
-    localOptParser = mipsParser.mipsResultParser(folder,name_instance,I.baseMVA)
+    localOptParser = localACOPFsolver(I)
     ########################## Checking #########################################
     
     if I.n<=100:
@@ -118,20 +118,6 @@ def load_instance_and_bound_tightening(name_instance):
     print('FBBT/OBBT ended')
     return I
 
-# def basicsdp_relaxation_value(I,ub):
-#     B = sdpRelaxer.sdpRelaxer(I)
-#     val = B.computeSDPvalue()
-#     if lineconstraints=='I':
-#         with open('output_I/'+name_instance+'_sdp_val.txt','w') as f:
-#             f.write('SDP value = {0} \n'.format(val))
-#             f.write('SDP gap = {0} \n'.format(abs(val-ub)/(ub)))
-#             f.close()
-#     else:
-#         with open('output_S/'+name_instance+'_sdp_val.txt','w') as f:
-#             f.write('SDP value = {0} \n'.format(val))
-#             f.write('SDP gap = {0} \n'.format(abs(val-ub)/(ub)))
-#             f.close()  
-#     return val
 
 def global_algo(name_instance):
     print('############################################')
@@ -142,36 +128,36 @@ def global_algo(name_instance):
         folder = 'mips_outputs_lc'
     else:
         folder = 'mips_outputs_S'
-    localOptParser = mipsParser.mipsResultParser(folder,name_instance,I.baseMVA)
-    
-    I = load_instance_and_bound_tightening(name_instance)
-    ########################## Checking #########################################
-    for cl in I.cliques:
-        for index_bus_b in cl:
-            for index_bus_a in cl:
-                if index_bus_b!=index_bus_a:
-                    assert(I.ThetaMinByEdge[(index_bus_b,index_bus_a)]<=1e-5+np.pi*(localOptParser.VA[index_bus_b]-localOptParser.VA[index_bus_a])/180)
-                    assert(I.ThetaMaxByEdge[(index_bus_b,index_bus_a)]+1e-5>=np.pi*(localOptParser.VA[index_bus_b]-localOptParser.VA[index_bus_a])/180)
-    localOptParser.test_validity(I)
+    localOptParser = localACOPFsolver(I)
+    localOptParser.solve()
+    # I = load_instance_and_bound_tightening(name_instance)
+    # ########################## Checking #########################################
+    # for cl in I.cliques:
+    #     for index_bus_b in cl:
+    #         for index_bus_a in cl:
+    #             if index_bus_b!=index_bus_a:
+    #                 assert(I.ThetaMinByEdge[(index_bus_b,index_bus_a)]<=1e-5+np.pi*(localOptParser.VA[index_bus_b]-localOptParser.VA[index_bus_a])/180)
+    #                 assert(I.ThetaMaxByEdge[(index_bus_b,index_bus_a)]+1e-5>=np.pi*(localOptParser.VA[index_bus_b]-localOptParser.VA[index_bus_a])/180)
+    # localOptParser.test_validity(I)
 
-    value,X1,X2 = compute_sdp_cuts(I)
-    timeBTSDP = time.time() - t0
+    # value,X1,X2 = compute_sdp_cuts(I)
+    # timeBTSDP = time.time() - t0
     
-    t1= time.time()
+    # t1= time.time()
     
     
     
     
     R=GurobiACOPFmodel(I,{'reinforcement':True},localOptParser)
     R.build_model()
-    R.add_sdp_duals_W(X1)
+    #R.add_sdp_duals_W(X1)
     R.solve(36000)
        
         
         
 instances = [        # 'pglib_opf_case3_lmbd.m',
-                     # 'pglib_opf_case5_pjm.m', 
-                       'pglib_opf_case14_ieee.m',
+                      'pglib_opf_case5_pjm.m', 
+                      # 'pglib_opf_case14_ieee.m',
     #                     'pglib_opf_case24_ieee_rts.m',
     #                   'pglib_opf_case30_as.m',
     #             'pglib_opf_case30_ieee.m',
