@@ -893,7 +893,7 @@ class piecewiseRelaxer():
                 somme+=boolean
                 
                         
-        assert(sol.is_feasible_solution(silent=False,tolerance = 1e-4))
+        #assert(sol.is_feasible_solution(silent=False,tolerance = 1e-4))
         self.mdl.add_mip_start(sol)
         
 

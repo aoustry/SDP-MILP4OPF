@@ -33,7 +33,7 @@ instances = [         'pglib_opf_case3_lmbd.m',
 
 
 for name_instance in instances:
-    #basicsdp_relaxation_value(name_instance.replace('.m','')+"__api",lineconstraints,'data/pglib-opf/api')
+    basicsdp_relaxation_value(name_instance.replace('.m','')+"__api",lineconstraints,'data/pglib-opf/api')
     global_algo(name_instance.replace('.m','')+"__api",lineconstraints,'data/pglib-opf/api',BTtimeLimit,MILPtimeLimit,reltol)
     
     
