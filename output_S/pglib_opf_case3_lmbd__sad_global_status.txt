@@ -1,4 +1,4 @@
-Time BT-SDP = 1.0763566493988037 
+Time BT-SDP = 0.8742144107818604 
 BT-SDP value = 5959.277829693378 
 Time MILP = 0
 Total iteration number = 0
