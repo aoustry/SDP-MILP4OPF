@@ -35,7 +35,7 @@ and
 python3 main_api.py
 ```
 
-will run the numerical experiments presented in the paper "A. Oustry, AC Optimal Power Flow: a strengthened SDP relaxation and an iterative MILP scheme for global optimization" (submitted).  
+will run the numerical experiments presented in the paper "A. Oustry, AC Optimal Power Flow: a Conic Programming relaxation and an iterative MILP scheme for Global Optimization, Open Journal of Mathematical Optimization, 2022".  
 
 ---------------------------------------------------------------------------------------
 # Affiliations and sponsor
